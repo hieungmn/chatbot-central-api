@@ -5,11 +5,8 @@ const path = require('path');
 const csv = require('csv-parser');
 
 const app = express();
-
-// 1. CẤU HÌNH PORT ĐỘNG: Tránh lỗi sập Render khi deploy
 const PORT = process.env.PORT || 3000;
 
-// 2. CẤU HÌNH CORS: Cho phép trang jukou-kanri.jp kết nối tự do
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST'],
@@ -18,42 +15,35 @@ app.use(cors({
 
 app.use(express.json());
 
-// Nơi lưu trữ dữ liệu FAQ tạm thời trong bộ nhớ RAM của Server
 let faqMasterData = [];
  
 // ==========================================
-// HÀM ĐỌC FILE CSV (Sửa chuẩn theo tiêu đề file thật)
+// HÀM ĐỌC FILE CSV (Nâng cấp bộ lọc dọn rác dữ liệu)
 // ==========================================
 function loadFaqData() {
     const results = [];
     const csvFilePath = path.join(__dirname, 'master_faq.csv');
 
     if (!fs.existsSync(csvFilePath)) {
-        console.error("❌ Không tìm thấy file master_faq.csv! Vui lòng kiểm tra lại trên GitHub.");
+        console.error("❌ Không tìm thấy file master_faq.csv!");
         return;
     }
 
     fs.createReadStream(csvFilePath)
-        // Loại bỏ ký tự tàng hình BOM của Excel và ép tiêu đề về chữ thường
         .pipe(csv({
             mapHeaders: ({ header }) => header.replace(/^[\uFEFF\xEF\xBB\xBF]+/, '').trim().toLowerCase()
         }))
         .on('data', (data) => results.push(data))
         .on('end', () => {
             faqMasterData = results;
-            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng kịch bản từ file CSV thật vào RAM!`);
-            
-            if (faqMasterData.length > 0) {
-                console.log("🔍 [DÒNG 1 THỰC TẾ TRÊN SERVER]:", faqMasterData[0]);
-            }
+            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng kịch bản từ file CSV!`);
         });
 }
 
-// Khởi động nạp dữ liệu
 loadFaqData();
 
 // ==========================================
-// API XỬ LÝ CHÍNH: Tiếp nhận câu hỏi từ bot
+// API XỬ LÝ CHÍNH (Thuật toán đối khớp tối ưu)
 // ==========================================
 app.post('/api/v1/chatbot/query', (req, res) => {
     const { site_id, question } = req.body;
@@ -64,42 +54,41 @@ app.post('/api/v1/chatbot/query', (req, res) => {
 
     console.log(`📩 Nhận câu hỏi từ [${site_id}]: "${question}"`);
 
-    // Lọc kịch bản theo site_id (ví dụ: 'c-wing')
+    // Lọc kịch bản theo site_id chuẩn xác
     const siteFaq = faqMasterData.filter(item => item.site_id && item.site_id.trim().toLowerCase() === site_id.trim().toLowerCase());
-
-    console.log(`🔍 Tìm thấy ${siteFaq.length} câu kịch bản khớp với site_id: [${site_id}]`);
+    console.log(`🔍 Số câu kịch bản tìm thấy cho [${site_id}]: ${siteFaq.length} câu`);
 
     let matchedAnswer = null;
     let redirectUrl = "";
 
-    // Duyệt tìm từ khóa
-// Duyệt tìm từ khóa (Đoạn này thay vào trong file server.js)
+    // Duyệt tìm từ khóa bóc tách thông minh
     for (const row of siteFaq) {
         if (!row.keywords) continue;
 
-        // 🎯 CẢI TIẾN THÔNG MINH: Loại bỏ hoàn toàn dấu nháy kép " và dấu nháy đơn ' do Excel sinh ra
+        // 🎯 THUẬT TOÁN ĐÃ NÂNG CẤP: Gọt sạch toàn bộ các loại dấu nháy kép/nháy đơn quấy nhiễu chuỗi
         const cleanKeywords = row.keywords.replace(/['"“”]/g, '');
 
-        // Tách các từ khóa ra bằng dấu phẩy, sau đó gọt sạch khoảng trắng thừa
+        // Tách từ khóa ra bằng dấu phẩy và xóa bỏ khoảng trắng thừa
         const keywordList = cleanKeywords.split(',').map(k => k.trim().toLowerCase());
 
-        console.log(`👀 Đang đối chiếu với danh sách từ khóa thực tế:`, keywordList);
+        console.log(`🕵️ Đang so khớp với danh sách từ khóa đã làm sạch:`, keywordList);
 
-        // Kiểm tra xem câu hỏi khách gõ có chứa từ khóa nào trong danh sách không
+        // Kiểm tra xem câu hỏi người dùng gõ (ví dụ: "申込") có chứa từ khóa nào không
         const isMatch = keywordList.some(keyword => {
             if (!keyword) return false;
+            // Chuyển câu hỏi về chữ thường để so sánh không phân biệt hoa thường
             return question.toLowerCase().includes(keyword);
         });
 
         if (isMatch) {
             matchedAnswer = row.answer_text; 
             redirectUrl = row.redirect_url || "";
-            console.log(`🎯 KHỚP TỪ KHÓA THÀNH CÔNG: [${keywordList}]`);
+            console.log(`🎯 KHỚP TỪ KHÓA THÀNH CÔNG!`);
             break; 
         }
     }
 
-    // TRẢ KẾT QUẢ VỀ CHO CHATBOT
+    // TRẢ KẾT QUẢ VỀ FRONT-END
     if (matchedAnswer) {
         return res.json({
             status: "success",
@@ -107,7 +96,7 @@ app.post('/api/v1/chatbot/query', (req, res) => {
             redirect_url: redirectUrl
         });
     } else {
-        console.log(`⚠️ Không khớp từ khóa nào cho câu: "${question}"`);
+        console.log(`⚠️ Không tìm thấy từ khóa trùng khớp.`);
         return res.json({
             status: "fallback",
             answer: "Xin lỗi, tôi chưa hiểu câu hỏi của bạn. Hệ thống đang ghi nhận để nâng cấp.",
@@ -116,10 +105,9 @@ app.post('/api/v1/chatbot/query', (req, res) => {
     }
 });
 
-// API RELOAD
 app.get('/api/v1/chatbot/reload', (req, res) => {
     loadFaqData();
-    res.json({ status: "success", message: "Đã cập nhật dữ liệu FAQ mới nhất từ file CSV thật!" });
+    res.json({ status: "success", message: "Đã cập nhật lại RAM!" });
 });
 
 app.use(express.static(__dirname));
