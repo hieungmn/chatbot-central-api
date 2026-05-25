@@ -73,20 +73,25 @@ app.post('/api/v1/chatbot/query', (req, res) => {
     let redirectUrl = "";
 
     // Duyệt tìm từ khóa
+// Duyệt tìm từ khóa (Đoạn này thay vào trong file server.js)
     for (const row of siteFaq) {
         if (!row.keywords) continue;
 
-        // Tách các từ khóa trong dấu ngoặc kép (Ví dụ: "申込, 登録, 期限")
-        const keywordList = row.keywords.replace(/['"]/g, '').split(',').map(k => k.trim().toLowerCase());
+        // 🎯 CẢI TIẾN THÔNG MINH: Loại bỏ hoàn toàn dấu nháy kép " và dấu nháy đơn ' do Excel sinh ra
+        const cleanKeywords = row.keywords.replace(/['"“”]/g, '');
 
-        // Kiểm tra xem câu hỏi khách gõ có chứa từ khóa nào không
+        // Tách các từ khóa ra bằng dấu phẩy, sau đó gọt sạch khoảng trắng thừa
+        const keywordList = cleanKeywords.split(',').map(k => k.trim().toLowerCase());
+
+        console.log(`👀 Đang đối chiếu với danh sách từ khóa thực tế:`, keywordList);
+
+        // Kiểm tra xem câu hỏi khách gõ có chứa từ khóa nào trong danh sách không
         const isMatch = keywordList.some(keyword => {
             if (!keyword) return false;
             return question.toLowerCase().includes(keyword);
         });
 
         if (isMatch) {
-            // 🎯 ĐÃ SỬA CHUẨN: Lấy đúng cột 'answer_text' theo file CSV thật của bạn
             matchedAnswer = row.answer_text; 
             redirectUrl = row.redirect_url || "";
             console.log(`🎯 KHỚP TỪ KHÓA THÀNH CÔNG: [${keywordList}]`);
