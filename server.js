@@ -1,21 +1,22 @@
 const express = require('express');
-const cors = require('cors'); // <-- Đảm bảo có dòng này
+const cors = require('cors'); 
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 
 const app = express();
-const PORT = 3000;
 
-// 🎯 ĐOẠN QUAN TRỌNG NHẤT: Cấu hình CORS mở toang cửa cho phép mọi website kết nối vào
+// 🎯 ĐÃ SỬA CỔNG PORT: Để Render tự cấp cổng chạy online
+const PORT = process.env.PORT || 3000;
+
+// Cấu hình CORS mở toang cửa cho phép mọi website kết nối vào
 app.use(cors({
-    origin: '*', // Cho phép tất cả các trang web (bao gồm jukou-kanri.jp) gọi tới
+    origin: '*', 
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
-// ... các đoạn code bên dưới giữ nguyên ...
 
 // Nơi lưu trữ dữ liệu FAQ tạm thời trong bộ nhớ RAM của Server
 let faqMasterData = [];
@@ -75,7 +76,8 @@ app.post('/api/v1/chatbot/query', (req, res) => {
         const isMatch = keywordList.some(keyword => question.toLowerCase().includes(keyword));
 
         if (isMatch) {
-            matchedAnswer = row.answer_text;
+            // 🎯 ĐÃ SỬA: Lấy đúng cột 'answer' từ file CSV
+            matchedAnswer = row.answer; 
             redirectUrl = row.redirect_url || "";
             break; // Tìm thấy từ khóa phù hợp đầu tiên thì dừng lại luôn
         }
@@ -90,7 +92,6 @@ app.post('/api/v1/chatbot/query', (req, res) => {
         });
     } else {
         // FALLBACK: Khi không tìm thấy từ khóa ở Cấp độ 1
-        // (Đây chính là nơi ở Cấp độ 2 chúng ta sẽ viết code gọi sang OpenAI/Gemini)
         return res.json({
             status: "fallback",
             answer: "Xin lỗi, tôi chưa hiểu câu hỏi của bạn. Hệ thống đang ghi nhận để nâng cấp.",
@@ -106,9 +107,11 @@ app.get('/api/v1/chatbot/reload', (req, res) => {
     loadFaqData();
     res.json({ status: "success", message: "Đã cập nhật dữ liệu FAQ mới nhất!" });
 });
+
 // Cho phép tải công khai các file như chatbot.js từ Server
 app.use(express.static(__dirname));
-// Khởi chạy Server ở cổng 3000
+
+// Khởi chạy Server ở cổng thích ứng
 app.listen(PORT, () => {
-    console.log(`🚀 Central Chatbot API đang chạy tại: http://localhost:${PORT}`);
+    console.log(`🚀 Central Chatbot API đang chạy tại cổng: ${PORT}`);
 });
