@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // <-- Đảm bảo có dòng này
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
@@ -7,13 +7,19 @@ const csv = require('csv-parser');
 const app = express();
 const PORT = 3000;
 
-// Bật CORS để cho phép các website vệ tinh (khác tên miền) có thể gọi API này
-app.use(cors());
+// 🎯 ĐOẠN QUAN TRỌNG NHẤT: Cấu hình CORS mở toang cửa cho phép mọi website kết nối vào
+app.use(cors({
+    origin: '*', // Cho phép tất cả các trang web (bao gồm jukou-kanri.jp) gọi tới
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
+// ... các đoạn code bên dưới giữ nguyên ...
 
 // Nơi lưu trữ dữ liệu FAQ tạm thời trong bộ nhớ RAM của Server
 let faqMasterData = [];
-
+ 
 // ==========================================
 // HÀM ĐỌC FILE CSV (Nạp dữ liệu khi khởi động)
 // ==========================================
