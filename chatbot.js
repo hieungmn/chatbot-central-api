@@ -1,10 +1,5 @@
-// BIẾN FILE CHATBOT THÀNH MỘT HÀM KHỞI TẠO ĐỘNG TOÀN CỤC
-window.initCentralChatbot = function (config) {
-    // Tự động lấy cấu hình truyền vào, nếu không truyền sẽ mặc định là c-wing
-    const SITE_ID = config.site_id || "c-wing"; 
-    const SITE_NAME = config.site_name || "C-Wing Support Assistant"; 
-
-    // 1. TẠO CSS CHUYÊN NGHIỆP CHO KHUNG CHAT (Có bổ sung Responsive cho Mobile)
+(function () {
+    // TẠO CSS CHUYÊN NGHIỆP CHO KHUNG CHAT
     const style = document.createElement('style');
     style.innerHTML = `
         #central-chatbot-widget { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -16,29 +11,23 @@ window.initCentralChatbot = function (config) {
         .msg { padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.4; word-break: break-word; }
         .msg.bot { background: white; align-self: flex-start; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom-left-radius: 2px; }
         .msg.user { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .msg.loading { color: #888; font-style: italic; background: transparent; box-shadow: none; }
         #chatbot-footer { display: flex; padding: 12px; border-top: 1px solid #eee; gap: 8px; background: white; }
         #chatbot-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 14px; }
         #chatbot-input:focus { border-color: #007bff; }
         #chatbot-send { background: #007bff; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
         #chatbot-send:hover { background: #0056b3; }
         .chatbot-link { display: inline-block; margin-top: 8px; color: #007bff; text-decoration: underline; font-size: 13px; font-weight: bold; }
-        
-        /* Hỗ trợ hiển thị full màn hình mượt mà khi khách dùng điện thoại di động */
-        @media (max-width: 480px) {
-            #chatbot-box { width: calc(100vw - 40px); height: 70vh; bottom: 75px; }
-        }
     `;
     document.head.appendChild(style);
 
-    // 2. CHÈN GIAO DIỆN HTML (Đã thay tên tiêu đề cứng thành biến động ${SITE_NAME})
+    // CHÈN GIAO DIỆN HTML VÀO TRANG WEB VỆ TINH
     const widget = document.createElement('div');
     widget.id = 'central-chatbot-widget';
     widget.innerHTML = `
         <div id="chatbot-bubble">💬</div>
         <div id="chatbot-box">
             <div id="chatbot-header">
-                <span>${SITE_NAME}</span>
+                <span>Central Chatbot (c-wing)</span>
                 <span id="chatbot-close" style="cursor:pointer; font-size:18px;">×</span>
             </div>
             <div id="chatbot-messages">
@@ -62,7 +51,7 @@ window.initCentralChatbot = function (config) {
     });
     closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
-    // 3. KẾT NỐI ĐẾN SERVER API TRUNG TÂM
+    // KẾT NỐI API
     const API_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
     const input = document.getElementById('chatbot-input');
     const sendBtn = document.getElementById('chatbot-send');
@@ -72,36 +61,20 @@ window.initCentralChatbot = function (config) {
         const text = input.value.trim();
         if (!text) return;
         
-        // Hiển thị tin nhắn của User chat
         const uDiv = document.createElement('div'); uDiv.className = 'msg user'; uDiv.innerText = text;
         messagesContainer.appendChild(uDiv); input.value = '';
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-        // TẠO HIỆU ỨNG LOADING (CẤP ĐỘ 3): Giúp khách biết AI đang suy nghĩ, không bị cảm giác treo web
-        const loadingId = 'loading-' + Date.now();
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'msg bot loading';
-        loadingDiv.id = loadingId;
-        loadingDiv.innerText = "AI đang xử lý...";
-        messagesContainer.appendChild(loadingDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         try {
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ site_id: SITE_ID, question: text }) // Gửi SITE_ID động cực kỳ thông minh
+                body: JSON.stringify({ site_id: "c-wing", question: text }) // Gửi chuẩn site_id c-wing
             });
             const data = await response.json();
             
-            // Xóa dòng chữ Loading sau khi Server phản hồi kết quả
-            const targetLoading = document.getElementById(loadingId);
-            if(targetLoading) targetLoading.remove();
-
-            // Hiển thị câu trả lời của Bot
             const bDiv = document.createElement('div'); bDiv.className = 'msg bot'; bDiv.innerText = data.answer;
             
-            // Chèn link điều hướng nếu có dữ liệu từ CSV trả về
             if (data.redirect_url && data.redirect_url.trim() !== "") {
                 const link = document.createElement('a');
                 link.className = 'chatbot-link'; link.href = data.redirect_url.trim(); link.target = '_blank';
@@ -110,10 +83,6 @@ window.initCentralChatbot = function (config) {
             }
             messagesContainer.appendChild(bDiv);
         } catch (error) {
-            // Xóa loading nếu xảy ra lỗi kết nối
-            const targetLoading = document.getElementById(loadingId);
-            if(targetLoading) targetLoading.remove();
-
             const eDiv = document.createElement('div'); eDiv.className = 'msg bot'; eDiv.innerText = "❌ Lỗi kết nối đến Server.";
             messagesContainer.appendChild(eDiv);
         }
@@ -122,4 +91,4 @@ window.initCentralChatbot = function (config) {
 
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-};
+})();
