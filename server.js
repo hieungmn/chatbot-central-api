@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors'); 
+const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
@@ -7,120 +7,223 @@ const csv = require('csv-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. CẤU HÌNH CORS MỞ ĐỂ ĐA TRANG KẾT NỐI KHÔNG BỊ CHẶN
+// ===============================
+// CONFIG
+// ===============================
+
 app.use(cors({
-    origin: '*', 
+    origin: '*',
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
 app.use(express.json());
-app.use(express.static(__dirname));
 
 let faqMasterData = [];
- 
-// 2. HÀM NẠP VÀ LÀM SẠCH DỮ LIỆU FILE CSV CHUYÊN SÂU
-function loadFaqData() {
-    const results = [];
-    const csvFilePath = path.join(__dirname, 'master_faq.csv');
 
-    if (!fs.existsSync(csvFilePath)) {
-        console.error("❌ Không tìm thấy file master_faq.csv! Hãy chắc chắn file nằm chung thư mục với server.js");
-        return;
-    }
+// ===============================
+// NORMALIZE TEXT
+// ===============================
 
-    fs.createReadStream(csvFilePath)
-        .pipe(csv({
-            // Xóa mã BOM tàng hình, xóa ký tự xuống dòng \r \n, chuyển tiêu đề về chữ thường
-            mapHeaders: ({ header }) => header.replace(/^[\uFEFF\xEF\xBB\xBF]+/, '').replace(/[\r\n]+/g, '').trim().toLowerCase(),
-            // Xóa sạch các ký tự xuống dòng bẩn bên trong từng ô dữ liệu
-            mapValues: ({ value }) => typeof value === 'string' ? value.replace(/[\r\n]+/g, '').trim() : value
-        }))
-        .on('data', (data) => results.push(data))
-        .on('end', () => {
-            faqMasterData = results;
-            console.log(`==========================================`);
-            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng dữ liệu từ CSV.`);
-            if (faqMasterData.length > 0) {
-                console.log(`🔍 Các cột nhận diện được: [${Object.keys(faqMasterData[0]).join(', ')}]`);
-            }
-            console.log(`==========================================`);
-        })
-        .on('error', (err) => {
-            console.error("❌ Lỗi trong quá trình đọc file CSV:", err);
-        });
+function normalize(str) {
+    return String(str || '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '');
 }
 
-// Chạy lệnh nạp dữ liệu ngay khi khởi động server
-loadFaqData();
+// ===============================
+// LOAD CSV
+// ===============================
 
-// 3. API TIẾP NHẬN VÀ XỬ LÝ CÂU HỎI TỪ CHATBOT
-app.post('/api/v1/chatbot/query', (req, res) => {
-    const { site_id, question } = req.body;
+function loadFaqData() {
 
-    if (!site_id || !question) {
-        return res.status(400).json({ status: "error", message: "Thiếu tham số site_id hoặc question." });
-    }
+    return new Promise((resolve, reject) => {
 
-    // Chuẩn hóa dữ liệu nhận về (viết thường, xóa khoảng trắng thừa đầu đuôi)
-    const cleanSiteId = site_id.trim().toLowerCase();
-    const cleanQuestion = question.trim().toLowerCase();
+        const results = [];
 
-    console.log(`\n📬 [YÊU CẦU MỚI] Từ Site: [${cleanSiteId}] | Câu hỏi: "${question}"`);
+        const csvFilePath = path.join(__dirname, 'master_faq.csv');
 
-    // Bước A: Lọc toàn bộ dữ liệu có site_id trùng khớp trong file CSV
-    const siteSpecificData = faqMasterData.filter(row => 
-        row.site_id && row.site_id.trim().toLowerCase() === cleanSiteId
-    );
-
-    let matchedAnswer = "";
-    let redirectUrl = "";
-
-    // Bước B: Duyệt tìm từ khóa khớp với câu hỏi
-    for (const row of siteSpecificData) {
-        let rawKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
-        if (!rawKeywords) continue;
-
-        // Cắt mảng từ khóa (hỗ trợ cả dấu phẩy Anh ',' lẫn dấu phẩy Nhật '、') và xóa khoảng trắng
-        const keywordList = rawKeywords
-            .split(/[,、]/)
-            .map(k => k.trim().toLowerCase())
-            .filter(k => k !== "");
-
-        // Kiểm tra xem câu hỏi người dùng có chứa từ khóa nào trong danh sách không
-        const isMatch = keywordList.some(keyword => cleanQuestion.includes(keyword));
-
-        if (isMatch) {
-            matchedAnswer = row.answer_text; 
-            redirectUrl = row.redirect_url || "";
-            console.log(`🎯 KHỚP THÀNH CÔNG -> Từ khóa: [${keywordList}]`);
-            break; // Tìm thấy từ khóa đầu tiên khớp là dừng vòng lặp ngay
+        if (!fs.existsSync(csvFilePath)) {
+            console.error('❌ Không tìm thấy master_faq.csv');
+            return reject('CSV NOT FOUND');
         }
-    }
 
-    // Bước C: Trả kết quả phản hồi về cho Widget Chatbot
-    if (matchedAnswer) {
-        return res.json({
-            status: "success",
-            answer: matchedAnswer,
-            redirect_url: redirectUrl
+        fs.createReadStream(csvFilePath)
+            .pipe(csv({
+                mapHeaders: ({ header }) =>
+                    header
+                        .replace(/^[\uFEFF\xEF\xBB\xBF]+/, '')
+                        .replace(/[\r\n]+/g, '')
+                        .trim()
+                        .toLowerCase(),
+
+                mapValues: ({ value }) =>
+                    typeof value === 'string'
+                        ? value.replace(/[\r\n]+/g, '').trim()
+                        : value
+            }))
+            .on('data', (data) => {
+                results.push(data);
+            })
+
+            .on('end', () => {
+
+                faqMasterData = results;
+
+                console.log('==============================');
+                console.log(`✅ CSV loaded: ${faqMasterData.length} rows`);
+
+                if (faqMasterData.length > 0) {
+                    console.log('📌 Columns:', Object.keys(faqMasterData[0]));
+                }
+
+                console.log('==============================');
+
+                resolve();
+            })
+
+            .on('error', (err) => {
+                console.error('❌ CSV ERROR:', err);
+                reject(err);
+            });
+    });
+}
+
+// ===============================
+// HEALTH CHECK
+// ===============================
+
+app.get('/', (req, res) => {
+    res.send('✅ CHATBOT API RUNNING');
+});
+
+// ===============================
+// CHATBOT API
+// ===============================
+
+app.post('/api/v1/chatbot/query', (req, res) => {
+
+    try {
+
+        console.log('\n==============================');
+        console.log('📩 NEW REQUEST');
+        console.log(req.body);
+
+        const { site_id, question } = req.body;
+
+        if (!site_id || !question) {
+            return res.status(400).json({
+                status: 'error',
+                answer: 'Thiếu site_id hoặc question'
+            });
+        }
+
+        const cleanSiteId = normalize(site_id);
+        const cleanQuestion = normalize(question);
+
+        const siteSpecificData = faqMasterData.filter(row =>
+            normalize(row.site_id) === cleanSiteId
+        );
+
+        console.log(`🔍 Site matched rows: ${siteSpecificData.length}`);
+
+        let matchedAnswer = '';
+        let redirectUrl = '';
+
+        for (const row of siteSpecificData) {
+
+            const rawKeywords = row.keywords || '';
+
+            if (!rawKeywords) continue;
+
+            const keywordList = rawKeywords
+                .split(/[,、]/)
+                .map(k => normalize(k))
+                .filter(Boolean);
+
+            const isMatch = keywordList.some(keyword =>
+                cleanQuestion.includes(keyword)
+            );
+
+            if (isMatch) {
+
+                matchedAnswer = row.answer_text || '';
+                redirectUrl = row.redirect_url || '';
+
+                console.log('🎯 MATCH FOUND');
+                console.log(keywordList);
+
+                break;
+            }
+        }
+
+        if (matchedAnswer) {
+
+            return res.json({
+                status: 'success',
+                answer: matchedAnswer,
+                redirect_url: redirectUrl
+            });
+
+        } else {
+
+            console.log('⚠️ NO MATCH');
+
+            return res.json({
+                status: 'fallback',
+                answer: 'Xin lỗi, tôi chưa tìm thấy thông tin phù hợp.',
+                redirect_url: ''
+            });
+        }
+
+    } catch (err) {
+
+        console.error('❌ SERVER ERROR:', err);
+
+        return res.status(500).json({
+            status: 'error',
+            answer: 'Lỗi server.'
         });
-    } else {
-        console.log(`⚠️ Không tìm thấy từ khóa nào trùng khớp cho site [${cleanSiteId}].`);
-        return res.json({
-            status: "fallback",
-            answer: "Xin lỗi, tôi chưa tìm thấy thông tin phù hợp. Vui lòng thử lại bằng từ khóa khác hoặc liên hệ bộ phận hỗ trợ.",
-            redirect_url: ""
+    }
+});
+
+// ===============================
+// RELOAD CSV
+// ===============================
+
+app.get('/api/v1/chatbot/reload', async (req, res) => {
+
+    try {
+
+        await loadFaqData();
+
+        res.json({
+            status: 'success',
+            message: 'Reload CSV thành công'
+        });
+
+    } catch (err) {
+
+        res.status(500).json({
+            status: 'error',
+            message: 'Reload thất bại'
         });
     }
 });
 
-// 4. API RE_LOAD CẬP NHẬT NHANH DỮ LIỆU CSV (KHÔNG CẦN RESET SERVER)
-app.get('/api/v1/chatbot/reload', (req, res) => {
-    loadFaqData();
-    res.json({ status: "success", message: "Đã nạp lại dữ liệu CSV mới nhất vào bộ nhớ thành công." });
-});
+// ===============================
+// START SERVER
+// ===============================
 
-app.listen(PORT, () => {
-    console.log(`🚀 Central Server đang vận hành ổn định tại cổng: ${PORT}`);
-});
+loadFaqData()
+    .then(() => {
+
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running at PORT ${PORT}`);
+        });
+
+    })
+    .catch(err => {
+        console.error('❌ FAILED TO START:', err);
+    });
