@@ -1,290 +1,126 @@
-(function () {
-
-    window.initCentralChatbot = function (config) {
-
-        const SITE_ID =
-            config?.site_id?.trim().toLowerCase() || 'c-wing';
-
-        const SITE_NAME =
-            config?.site_name || 'Central Chatbot';
-
-        const oldWidget =
-            document.getElementById('central-chatbot-widget');
-
-        if (oldWidget) oldWidget.remove();
-
-        // ===============================
-        // CSS
-        // ===============================
-
-        const styleId = 'central-chatbot-style';
-
-        if (!document.getElementById(styleId)) {
-
-            const style = document.createElement('style');
-
-            style.id = styleId;
-
-            style.innerHTML = `
-                #central-chatbot-widget{
-                    position:fixed;
-                    bottom:20px;
-                    right:20px;
-                    z-index:999999;
-                    font-family:Arial,sans-serif;
-                }
-
-                #chatbot-bubble{
-                    width:60px;
-                    height:60px;
-                    border-radius:50%;
-                    background:#007bff;
-                    color:white;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    cursor:pointer;
-                    font-size:28px;
-                }
-
-                #chatbot-box{
-                    display:none;
-                    width:360px;
-                    height:500px;
-                    background:white;
-                    border-radius:12px;
-                    overflow:hidden;
-                    position:absolute;
-                    bottom:80px;
-                    right:0;
-                    box-shadow:0 5px 20px rgba(0,0,0,0.2);
-                    flex-direction:column;
-                }
-
-                #chatbot-header{
-                    background:#007bff;
-                    color:white;
-                    padding:15px;
-                    font-weight:bold;
-                    display:flex;
-                    justify-content:space-between;
-                }
-
-                #chatbot-messages{
-                    flex:1;
-                    overflow-y:auto;
-                    padding:15px;
-                    background:#f5f5f5;
-                    display:flex;
-                    flex-direction:column;
-                    gap:10px;
-                }
-
-                .msg{
-                    padding:10px 14px;
-                    border-radius:12px;
-                    max-width:80%;
-                    font-size:14px;
-                    line-height:1.5;
-                    word-break:break-word;
-                }
-
-                .msg.user{
-                    background:#007bff;
-                    color:white;
-                    align-self:flex-end;
-                }
-
-                .msg.bot{
-                    background:white;
-                    color:#333;
-                    align-self:flex-start;
-                }
-
-                #chatbot-footer{
-                    display:flex;
-                    padding:10px;
-                    gap:10px;
-                    border-top:1px solid #ddd;
-                }
-
-                #chatbot-input{
-                    flex:1;
-                    padding:10px;
-                }
-
-                #chatbot-send{
-                    background:#007bff;
-                    color:white;
-                    border:none;
-                    padding:10px 16px;
-                    cursor:pointer;
-                }
-
-                .chatbot-link{
-                    display:block;
-                    margin-top:8px;
-                    color:#007bff;
-                }
-            `;
-
-            document.head.appendChild(style);
-        }
-
-        // ===============================
-        // HTML
-        // ===============================
-
-        const widget = document.createElement('div');
-
-        widget.id = 'central-chatbot-widget';
-
-        widget.innerHTML = `
-            <div id="chatbot-bubble">💬</div>
-
-            <div id="chatbot-box">
-
-                <div id="chatbot-header">
-                    <span>${SITE_NAME}</span>
-                    <span id="chatbot-close" style="cursor:pointer;">✕</span>
-                </div>
-
-                <div id="chatbot-messages">
-                    <div class="msg bot">
-                        こんにちは！ご質問はありますか？
-                    </div>
-                </div>
-
-                <div id="chatbot-footer">
-                    <input id="chatbot-input" placeholder="Nhập câu hỏi..." />
-                    <button id="chatbot-send">Gửi</button>
-                </div>
-
-            </div>
-        `;
-
-        document.body.appendChild(widget);
-
-        // ===============================
-        // ELEMENTS
-        // ===============================
-
-        const bubble = document.getElementById('chatbot-bubble');
-        const box = document.getElementById('chatbot-box');
-        const closeBtn = document.getElementById('chatbot-close');
-        const input = document.getElementById('chatbot-input');
-        const sendBtn = document.getElementById('chatbot-send');
-        const messages = document.getElementById('chatbot-messages');
-
-        // ===============================
-        // API
-        // ===============================
-
-        const API_URL =
-            'https://chatbot-central-api.onrender.com/api/v1/chatbot/query';
-
-        // ===============================
-        // OPEN/CLOSE
-        // ===============================
-
-        bubble.onclick = () => {
-
-            box.style.display =
-                box.style.display === 'flex'
-                    ? 'none'
-                    : 'flex';
-        };
-
-        closeBtn.onclick = () => {
-            box.style.display = 'none';
-        };
-
-        // ===============================
-        // SEND MESSAGE
-        // ===============================
-
-        async function sendMessage() {
-
-            const text = input.value.trim();
-
-            if (!text) return;
-
-            const userDiv = document.createElement('div');
-
-            userDiv.className = 'msg user';
-            userDiv.innerText = text;
-
-            messages.appendChild(userDiv);
-
-            input.value = '';
-
-            messages.scrollTop = messages.scrollHeight;
-
-            try {
-
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        site_id: SITE_ID,
-                        question: text
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                const botDiv = document.createElement('div');
-
-                botDiv.className = 'msg bot';
-
-                botDiv.innerText =
-                    data.answer || 'Không có phản hồi';
-
-                if (data.redirect_url) {
-
-                    const link = document.createElement('a');
-
-                    link.className = 'chatbot-link';
-                    link.href = data.redirect_url;
-                    link.target = '_blank';
-
-                    link.innerText = '🔗 Xem chi tiết';
-
-                    botDiv.appendChild(link);
-                }
-
-                messages.appendChild(botDiv);
-
-            } catch (err) {
-
-                console.error(err);
-
-                const errDiv = document.createElement('div');
-
-                errDiv.className = 'msg bot';
-
-                errDiv.innerText =
-                    '❌ Server đang offline hoặc lỗi API';
-
-                messages.appendChild(errDiv);
+const express = require('express');
+const cors = require('cors'); 
+const fs = require('fs');
+const path = require('path');
+const csv = require('csv-parser');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// 1. CẤU HÌNH CORS MỞ ĐỂ ĐA TRANG KẾT NỐI KHÔNG BỊ CHẶN
+app.use(cors({
+    origin: '*', 
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
+
+app.use(express.json());
+app.use(express.static(__dirname));
+
+let faqMasterData = [];
+ 
+// 2. HÀM NẠP VÀ LÀM SẠCH DỮ LIỆU FILE CSV CHUYÊN SÂU
+function loadFaqData() {
+    const results = [];
+    const csvFilePath = path.join(__dirname, 'master_faq.csv');
+
+    if (!fs.existsSync(csvFilePath)) {
+        console.error("❌ Không tìm thấy file master_faq.csv! Hãy chắc chắn file nằm chung thư mục với server.js");
+        return;
+    }
+
+    fs.createReadStream(csvFilePath)
+        .pipe(csv({
+            // Xóa mã BOM tàng hình, xóa ký tự xuống dòng \r \n, chuyển tiêu đề về chữ thường
+            mapHeaders: ({ header }) => header.replace(/^[\uFEFF\xEF\xBB\xBF]+/, '').replace(/[\r\n]+/g, '').trim().toLowerCase(),
+            // Xóa sạch các ký tự xuống dòng bẩn bên trong từng ô dữ liệu
+            mapValues: ({ value }) => typeof value === 'string' ? value.replace(/[\r\n]+/g, '').trim() : value
+        }))
+        .on('data', (data) => results.push(data))
+        .on('end', () => {
+            faqMasterData = results;
+            console.log(`==========================================`);
+            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng dữ liệu từ CSV.`);
+            if (faqMasterData.length > 0) {
+                console.log(`🔍 Các cột nhận diện được: [${Object.keys(faqMasterData[0]).join(', ')}]`);
             }
-
-            messages.scrollTop = messages.scrollHeight;
-        }
-
-        sendBtn.onclick = sendMessage;
-
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            console.log(`==========================================`);
+        })
+        .on('error', (err) => {
+            console.error("❌ Lỗi trong quá trình đọc file CSV:", err);
         });
-    };
+}
 
-})();
+// Chạy lệnh nạp dữ liệu ngay khi khởi động server
+loadFaqData();
+
+// 3. API TIẾP NHẬN VÀ XỬ LÝ CÂU HỎI TỪ CHATBOT
+app.post('/api/v1/chatbot/query', (req, res) => {
+    const { site_id, question } = req.body;
+
+    if (!site_id || !question) {
+        return res.status(400).json({ status: "error", message: "Thiếu tham số site_id hoặc question." });
+    }
+
+    // Chuẩn hóa dữ liệu nhận về (viết thường, xóa khoảng trắng thừa đầu đuôi)
+    const cleanSiteId = site_id.trim().toLowerCase();
+    const cleanQuestion = question.trim().toLowerCase();
+
+    console.log(`\n📬 [YÊU CẦU MỚI] Từ Site: [${cleanSiteId}] | Câu hỏi: "${question}"`);
+
+    // Bước A: Lọc toàn bộ dữ liệu có site_id trùng khớp trong file CSV
+    const siteSpecificData = faqMasterData.filter(row => 
+        row.site_id && row.site_id.trim().toLowerCase() === cleanSiteId
+    );
+
+    let matchedAnswer = "";
+    let redirectUrl = "";
+
+    // Bước B: Duyệt tìm từ khóa khớp với câu hỏi
+    for (const row of siteSpecificData) {
+        let rawKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
+        if (!rawKeywords) continue;
+
+        // Cắt mảng từ khóa (hỗ trợ cả dấu phẩy Anh ',' lẫn dấu phẩy Nhật '、') và xóa khoảng trắng
+        const keywordList = rawKeywords
+            .split(/[,、]/)
+            .map(k => k.trim().toLowerCase())
+            .filter(k => k !== "");
+
+        // Kiểm tra xem câu hỏi người dùng có chứa từ khóa nào trong danh sách không
+        const isMatch = keywordList.some(keyword => cleanQuestion.includes(keyword));
+
+        if (isMatch) {
+            matchedAnswer = row.answer_text; 
+            redirectUrl = row.redirect_url || "";
+            console.log(`🎯 KHỚP THÀNH CÔNG -> Từ khóa: [${keywordList}]`);
+            break; // Tìm thấy từ khóa đầu tiên khớp là dừng vòng lặp ngay
+        }
+    }
+
+    // Bước C: Trả kết quả phản hồi về cho Widget Chatbot
+    if (matchedAnswer) {
+        return res.json({
+            status: "success",
+            answer: matchedAnswer,
+            redirect_url: redirectUrl
+        });
+    } else {
+        console.log(`⚠️ Không tìm thấy từ khóa nào trùng khớp cho site [${cleanSiteId}].`);
+        return res.json({
+            status: "fallback",
+            answer: "Xin lỗi, tôi chưa tìm thấy thông tin phù hợp. Vui lòng thử lại bằng từ khóa khác hoặc liên hệ bộ phận hỗ trợ.",
+            redirect_url: ""
+        });
+    }
+});
+
+// 4. API RE_LOAD CẬP NHẬT NHANH DỮ LIỆU CSV (KHÔNG CẦN RESET SERVER)
+app.get('/api/v1/chatbot/reload', (req, res) => {
+    loadFaqData();
+    res.json({ status: "success", message: "Đã nạp lại dữ liệu CSV mới nhất vào bộ nhớ thành công." });
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 Central Server đang vận hành ổn định tại cổng: ${PORT}`);
+});
