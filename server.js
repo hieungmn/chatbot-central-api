@@ -7,6 +7,7 @@ const csv = require('csv-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Cấu hình CORS mở cho mọi nguồn để website jukou-kanri.jp kết nối được
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST'],
@@ -14,95 +15,83 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use(express.static(__dirname));
 
 let faqMasterData = [];
  
 // ==========================================
-// HÀM ĐỌC FILE CSV (BẢN DIỆT SẠCH RÁC TÀNG HÌNH \r \n BOM)
+// HÀM ĐỌC FILE CSV (Tự động dọn rác font và dấu nháy)
 // ==========================================
 function loadFaqData() {
     const results = [];
     const csvFilePath = path.join(__dirname, 'master_faq.csv');
 
     if (!fs.existsSync(csvFilePath)) {
-        console.error("❌ Không tìm thấy file master_faq.csv!");
+        console.error("❌ Không tìm thấy file master_faq.csv! Vui lòng kiểm tra lại vị trí file.");
         return;
     }
 
     fs.createReadStream(csvFilePath)
         .pipe(csv({
-            // 1. Làm sạch tên cột (Xóa BOM, xóa khoảng trắng, xóa ký tự \r)
-            mapHeaders: ({ header }) => header.replace(/^[\uFEFF\xEF\xBB\xBF]+/, '').replace(/[\r\n]+/g, '').trim().toLowerCase(),
-            // 2. Làm sạch luôn dữ liệu bên trong từng ô (Xóa \r \n thừa của Windows)
-            mapValues: ({ value }) => typeof value === 'string' ? value.replace(/[\r\n]+/g, '').trim() : value
+            // Loại bỏ ký tự tàng hình BOM của Excel và đưa tiêu đề cột về chữ thường sạch sẽ
+            mapHeaders: ({ header }) => header.replace(/^[\uFEFF\xEF\xBB\xBF]+/, '').trim().toLowerCase()
         }))
         .on('data', (data) => results.push(data))
         .on('end', () => {
             faqMasterData = results;
-            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng dữ liệu từ CSV.`);
-            if(faqMasterData.length > 0) {
-                console.log("🔍 Cấu trúc cột thực tế nhận được:", Object.keys(faqMasterData[0]));
+            console.log(`✅ Đã nạp thành công ${faqMasterData.length} dòng kịch bản từ file CSV!`);
+            if (faqMasterData.length > 0) {
+                console.log("🔍 [DÒNG ĐẦU TIÊN TRÊN RAM]:", faqMasterData[0]);
             }
-        })
-        .on('error', (err) => {
-            console.error("❌ Lỗi khi đọc file CSV:", err);
         });
 }
 
+// Chạy nạp dữ liệu khi khởi động Server
 loadFaqData();
 
 // ==========================================
-// API CHÍNH: XỬ LÝ CHÁT (ĐỐI KHỚP TỪ KHÓA AN TOÀN)
+// API XỬ LÝ CHÍNH: Tiếp nhận câu hỏi và khớp từ khóa
 // ==========================================
 app.post('/api/v1/chatbot/query', (req, res) => {
-    let { site_id, question } = req.body;
+    const { site_id, question } = req.body;
 
     if (!site_id || !question) {
-        return res.status(400).json({ status: "error", message: "Thiếu tham số site_id hoặc question." });
+        return res.status(400).json({ status: "error", message: "Thiếu site_id hoặc câu hỏi!" });
     }
 
-    const cleanSiteId = site_id.trim().toLowerCase();
-    const cleanQuestion = question.trim().toLowerCase();
+    console.log(`📩 Nhận câu hỏi từ trang [${site_id}]: "${question}"`);
 
-    console.log(`=== [REQ] Site: [${cleanSiteId}] | Câu hỏi: "${question}" ===`);
+    // Lọc các dòng kịch bản thuộc về site_id này
+    const siteFaq = faqMasterData.filter(item => item.site_id && item.site_id.trim().toLowerCase() === site_id.trim().toLowerCase());
+    console.log(`🔍 Tìm thấy ${siteFaq.length} câu kịch bản cho [${site_id}]`);
 
-    // 1. Lọc theo site_id an toàn
-    const siteSpecificData = faqMasterData.filter(row => 
-        row.site_id && row.site_id.trim().toLowerCase() === cleanSiteId
-    );
-
-    let matchedAnswer = "";
+    let matchedAnswer = null;
     let redirectUrl = "";
 
-    // 2. Quét từ khóa
-    for (const row of siteSpecificData) {
-        let rawKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
-        if (!rawKeywords) continue;
+    // Duyệt tìm từ khóa bằng bộ lọc thông minh (chấp nhận cả dấu nháy kép của Excel)
+    for (const row of siteFaq) {
+        if (!row.keywords) continue;
 
-        // Tách từ khóa bằng dấu phẩy Anh hoặc Nhật, loại bỏ ô rỗng
-        const keywordList = rawKeywords
-            .split(/[,、]/)
-            .map(k => k.trim().toLowerCase())
-            .filter(k => k !== "");
+        // 🎯 THUẬT TOÁN LÀM SẠCH: Xóa bỏ tất cả các loại dấu nháy kép "", '' hoặc “” do Excel tự bọc
+        const cleanKeywords = row.keywords.replace(/['"“»«”]/g, '');
 
-        console.log(`🔍 Đang quét hàng dữ liệu của site [${cleanSiteId}]. Danh sách từ khóa: [${keywordList}]`);
+        // Tách các từ khóa bằng dấu phẩy và gọt sạch khoảng trắng thừa của từng từ
+        const keywordList = cleanKeywords.split(',').map(k => k.trim().toLowerCase());
 
+        // Kiểm tra xem khách gõ câu hỏi có chứa từ khóa nào trong danh sách sạch không
         const isMatch = keywordList.some(keyword => {
-            const checkResult = cleanQuestion.includes(keyword);
-            console.log(`   > Thử từ khóa: "${keyword}" -> Kết quả: ${checkResult}`);
-            return checkResult;
+            if (!keyword) return false;
+            return question.toLowerCase().includes(keyword);
         });
 
         if (isMatch) {
             matchedAnswer = row.answer_text; 
             redirectUrl = row.redirect_url || "";
-            console.log(`🎯 KHỚP THÀNH CÔNG!`);
+            console.log(`🎯 KHỚP THÀNH CÔNG TỪ KHÓA: [${keywordList}]`);
             break; 
         }
     }
 
-    // 3. Trả kết quả
+    // TRẢ KẾT QUẢ VỀ CHO FRONT-END CHATBOT
     if (matchedAnswer) {
         return res.json({
             status: "success",
@@ -110,20 +99,23 @@ app.post('/api/v1/chatbot/query', (req, res) => {
             redirect_url: redirectUrl
         });
     } else {
-        console.log(`⚠️ Không tìm thấy từ khóa nào khớp.`);
+        console.log(`⚠️ Không tìm thấy từ khóa trùng khớp cho: "${question}"`);
         return res.json({
             status: "fallback",
-            answer: "Xin lỗi, tôi chưa tìm thấy thông tin phù hợp. Vui lòng thử lại bằng từ khóa khác hoặc liên hệ bộ phận hỗ trợ.",
+            answer: "Xin lỗi, tôi chưa hiểu câu hỏi của bạn. Hệ thống đang ghi nhận để nâng cấp.",
             redirect_url: ""
         });
     }
 });
 
+// API Ép nạp lại dữ liệu ngay lập tức khi bạn sửa file CSV mà không cần khởi động lại Render
 app.get('/api/v1/chatbot/reload', (req, res) => {
     loadFaqData();
-    res.json({ status: "success", message: "Dữ liệu CSV đã được cập nhật lại thành công." });
+    res.json({ status: "success", message: "Đã cập nhật lại bộ nhớ RAM thành công!" });
 });
 
+app.use(express.static(__dirname));
+
 app.listen(PORT, () => {
-    console.log(`🚀 Server Central đang chạy ổn định tại cổng ${PORT}`);
+    console.log(`🚀 Central Chatbot API đang hoạt động tại cổng: ${PORT}`);
 });
