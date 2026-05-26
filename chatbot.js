@@ -58,7 +58,7 @@ window.initCentralChatbot = function (config) {
 
     // 3. KẾT NỐI API ĐẾN SERVER LOCAL HOẶC RENDER CỦA BẠN
     // (Bạn nhớ sửa lại link này đúng với link Server thực tế của bạn nhé)
-    const API_URL = "http://localhost:3000/api/v1/chatbot/query"; 
+    const API_URL = "https://chatbot-central-api.onrender.com/"; 
     const input = document.getElementById('chatbot-input');
     const sendBtn = document.getElementById('chatbot-send');
     const messagesContainer = document.getElementById('chatbot-messages');
