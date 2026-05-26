@@ -1,7 +1,6 @@
 {
-  "name": "central-chatbot-api",
+  "name": "central-chatbot",
   "version": "1.0.0",
-  "description": "API trung tâm quản lý kịch bản Chatbot đa trang web",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,8 +8,6 @@
   "dependencies": {
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",
-    "express": "^4.19.2"
-  },
-  "author": "Central Chatbot Team",
-  "license": "ISC"
+    "express": "^4.18.2"
+  }
 }
