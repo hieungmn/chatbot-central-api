@@ -1,5 +1,10 @@
-(function () {
-    // TẠO CSS CHUYÊN NGHIỆP CHO KHUNG CHAT
+// BIẾN FILE CHATBOT THÀNH MỘT HÀM KHỞI TẠO ĐỘNG TOÀN CỤC
+window.initCentralChatbot = function (config) {
+    // Tự động lấy cấu hình truyền vào, nếu không truyền sẽ mặc định là c-wing
+    const SITE_ID = config.site_id || "c-wing"; 
+    const SITE_NAME = config.site_name || "C-Wing Chatbot"; 
+
+    // 1. TẠO CSS (Giữ nguyên form cũ chuyên nghiệp của bạn)
     const style = document.createElement('style');
     style.innerHTML = `
         #central-chatbot-widget { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -20,14 +25,14 @@
     `;
     document.head.appendChild(style);
 
-    // CHÈN GIAO DIỆN HTML VÀO TRANG WEB VỆ TINH
+    // 2. CHÈN GIAO DIỆN HTML (Thay chữ c-wing cố định thành tên động SITE_NAME)
     const widget = document.createElement('div');
     widget.id = 'central-chatbot-widget';
     widget.innerHTML = `
         <div id="chatbot-bubble">💬</div>
         <div id="chatbot-box">
             <div id="chatbot-header">
-                <span>Central Chatbot (c-wing)</span>
+                <span>${SITE_NAME}</span>
                 <span id="chatbot-close" style="cursor:pointer; font-size:18px;">×</span>
             </div>
             <div id="chatbot-messages">
@@ -51,8 +56,9 @@
     });
     closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
-    // KẾT NỐI API
-    const API_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
+    // 3. KẾT NỐI API ĐẾN SERVER LOCAL HOẶC RENDER CỦA BẠN
+    // (Bạn nhớ sửa lại link này đúng với link Server thực tế của bạn nhé)
+    const API_URL = "http://localhost:3000/api/v1/chatbot/query"; 
     const input = document.getElementById('chatbot-input');
     const sendBtn = document.getElementById('chatbot-send');
     const messagesContainer = document.getElementById('chatbot-messages');
@@ -69,7 +75,7 @@
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ site_id: "c-wing", question: text }) // Gửi chuẩn site_id c-wing
+                body: JSON.stringify({ site_id: SITE_ID, question: text }) // Truyền SITE_ID động
             });
             const data = await response.json();
             
@@ -91,4 +97,4 @@
 
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-})();
+};
