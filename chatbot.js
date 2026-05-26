@@ -56,7 +56,7 @@
         closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
         // 3. TỰ ĐỘNG PHÁT HIỆN LINK API (Nếu chạy localhost dùng cổng 3000, nếu chạy online tự lấy link Render)
-        let baseUrl = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query";
+        let baseUrl = "http://localhost:3000";
         const currentScript = document.querySelector('script[src*="chatbot-widget.js"]');
         if (currentScript) {
             const src = currentScript.getAttribute('src');
