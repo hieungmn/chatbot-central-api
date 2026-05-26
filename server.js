@@ -7,7 +7,7 @@ const csv = require('csv-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Cấu hình CORS mở để các website vệ tinh kết nối được
+// Cấu hình CORS mở cho mọi nguồn kết nối
 app.use(cors({
     origin: '*', 
     methods: ['GET', 'POST'],
@@ -15,21 +15,19 @@ app.use(cors({
 }));
 
 app.use(express.json());
-
-// Cho phép public các file trong thư mục gốc (để nhúng trực tiếp file JS)
 app.use(express.static(__dirname));
 
 let faqMasterData = [];
  
 // ==========================================
-// HÀM ĐỌC FILE CSV (Giữ nguyên bộ lọc dọn rác của bạn)
+// HÀM ĐỌC FILE CSV (Đã tối ưu hóa mapHeaders)
 // ==========================================
 function loadFaqData() {
     const results = [];
     const csvFilePath = path.join(__dirname, 'master_faq.csv');
 
     if (!fs.existsSync(csvFilePath)) {
-        console.error("❌ Không tìm thấy file master_faq.csv! Hãy kiểm tra lại.");
+        console.error("❌ Không tìm thấy file master_faq.csv! Vui lòng kiểm tra lại vị trí file.");
         return;
     }
 
@@ -47,16 +45,15 @@ function loadFaqData() {
         });
 }
 
-// Gọi nạp dữ liệu khi khởi động
+// Khởi động nạp dữ liệu từ CSV
 loadFaqData();
 
 // ==========================================
-// API XỬ LÝ CHÁT: ĐỐI KHỚP TỪ KHÓA TĨNH 100%
+// API CHÍNH: XỬ LÝ CHÁT (SIÊU CHUẨN TỪ KHÓA)
 // ==========================================
 app.post('/api/v1/chatbot/query', (req, res) => {
-    const { site_id, question } = req.body;
+    let { site_id, question } = req.body;
 
-    // Kiểm tra đầu vào an toàn
     if (!site_id || !question) {
         return res.status(400).json({
             status: "error",
@@ -64,38 +61,52 @@ app.post('/api/v1/chatbot/query', (req, res) => {
         });
     }
 
-    console.log(`[REQ] Site: ${site_id} | Hỏi: "${question}"`);
+    // Làm sạch dữ liệu đầu vào từ client để tránh lệch pha chữ hoa/chữ thường
+    const cleanSiteId = site_id.trim().toLowerCase();
+    const cleanQuestion = question.trim().toLowerCase();
 
-    // 1. Lọc dữ liệu theo đúng site_id gửi lên
+    console.log(`=== [REQ] Site: [${cleanSiteId}] | Câu hỏi: "${question}" ===`);
+
+    // 1. Lọc dữ liệu FAQ chuẩn theo đúng site_id
     const siteSpecificData = faqMasterData.filter(row => 
-        row.site_id && row.site_id.trim().toLowerCase() === site_id.trim().toLowerCase()
+        row.site_id && row.site_id.trim().toLowerCase() === cleanSiteId
     );
 
     let matchedAnswer = "";
     let redirectUrl = "";
 
-    // 2. Duyệt qua danh sách để dò từ khóa tĩnh
+    // 2. Tiến hành duyệt từ khóa tĩnh với bộ dọn rác thông minh
     for (const row of siteSpecificData) {
-        const cleanKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
-        if (!cleanKeywords) continue;
+        // Loại bỏ dấu ngoặc kép bọc ngoài trường (nếu có)
+        let rawKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
+        if (!rawKeywords) continue;
 
-        // Tách các từ khóa dấu phẩy thành mảng để so khớp
-        const keywordList = cleanKeywords.split(',').map(k => k.trim().toLowerCase());
+        // BỘ DỌN RÁC THÔNG MINH: Chấp nhận cả dấu phẩy Anh (,) và dấu phẩy Nhật (、)
+        // Sau đó tự động cắt bỏ toàn bộ khoảng trắng thừa của từng từ khóa bằng .trim()
+        const keywordList = rawKeywords
+            .split(/[,、]/)
+            .map(k => k.trim().toLowerCase())
+            .filter(k => k !== ""); // Loại bỏ các ô rỗng do gõ thừa dấu phẩy
 
+        // Log thám tử hiển thị danh sách từ khóa đã được dọn sạch rác
+        console.log(`🔍 Đang quét hàng dữ liệu. Từ khóa sạch: [${keywordList}]`);
+
+        // Kiểm tra xem câu hỏi có chứa bất kỳ từ khóa nào trong danh sách sạch không
         const isMatch = keywordList.some(keyword => {
-            if (!keyword) return false;
-            return question.toLowerCase().includes(keyword);
+            const checkResult = cleanQuestion.includes(keyword);
+            console.log(`   > Thử từ khóa: "${keyword}" -> Kết quả khớp: ${checkResult}`);
+            return checkResult;
         });
 
         if (isMatch) {
             matchedAnswer = row.answer_text; 
             redirectUrl = row.redirect_url || "";
-            console.log(`🎯 KHỚP TỪ KHÓA: [${keywordList}]`);
+            console.log(`🎯 KHỚP THÀNH CÔNG! Đang lấy câu trả lời.`);
             break; 
         }
     }
 
-    // 3. Trả kết quả về cho Frontend
+    // 3. Phản hồi kết quả về Frontend
     if (matchedAnswer) {
         return res.json({
             status: "success",
@@ -103,7 +114,7 @@ app.post('/api/v1/chatbot/query', (req, res) => {
             redirect_url: redirectUrl
         });
     } else {
-        // Câu trả lời mặc định khi không tìm thấy từ khóa tĩnh (Fallback cũ)
+        console.log(`⚠️ Không tìm thấy từ khóa nào khớp trong toàn bộ file CSV của site [${cleanSiteId}].`);
         return res.json({
             status: "fallback",
             answer: "Xin lỗi, tôi chưa tìm thấy thông tin phù hợp. Vui lòng thử lại bằng từ khóa khác hoặc liên hệ bộ phận hỗ trợ.",
@@ -112,12 +123,12 @@ app.post('/api/v1/chatbot/query', (req, res) => {
     }
 });
 
-// API reload dữ liệu nhanh không cần khởi động lại server
+// API Ép nạp lại dữ liệu CSV không cần khởi động lại Server
 app.get('/api/v1/chatbot/reload', (req, res) => {
     loadFaqData();
-    res.json({ status: "success", message: "Đã nạp lại dữ liệu CSV thành công." });
+    res.json({ status: "success", message: "Dữ liệu CSV đã được cập nhật lại thành công vào bộ nhớ." });
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server form cũ đang chạy ổn định tại cổng ${PORT}`);
+    console.log(`🚀 Server Central (Bản Chuẩn Tối Ưu) đang chạy mượt mà tại cổng ${PORT}`);
 });
