@@ -1,229 +1,110 @@
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const csv = require('csv-parser');
+(function () {
+    // Tạo hàm khởi tạo toàn cục để bạn gọi được từ Console hoặc thẻ script
+    window.initCentralChatbot = function (config) {
+        // Nhận cấu hình từ ngoài vào, nếu không truyền sẽ mặc định là c-wing
+        const SITE_ID = (config && config.site_id) ? config.site_id.trim().toLowerCase() : "c-wing"; 
+        const SITE_NAME = (config && config.site_name) ? config.site_name : "Central Chatbot"; 
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+        // Tránh trùng lặp giao diện nếu bạn paste vào Console nhiều lần
+        const oldWidget = document.getElementById('central-chatbot-widget');
+        if (oldWidget) oldWidget.remove();
 
-// ===============================
-// CONFIG
-// ===============================
-
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
-}));
-
-app.use(express.json());
-
-let faqMasterData = [];
-
-// ===============================
-// NORMALIZE TEXT
-// ===============================
-
-function normalize(str) {
-    return String(str || '')
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '');
-}
-
-// ===============================
-// LOAD CSV
-// ===============================
-
-function loadFaqData() {
-
-    return new Promise((resolve, reject) => {
-
-        const results = [];
-
-        const csvFilePath = path.join(__dirname, 'master_faq.csv');
-
-        if (!fs.existsSync(csvFilePath)) {
-            console.error('❌ Không tìm thấy master_faq.csv');
-            return reject('CSV NOT FOUND');
+        // 1. TẠO CSS CHUYÊN NGHIỆP CHO KHUNG CHAT
+        const styleId = 'central-chatbot-style';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                #central-chatbot-widget { position: fixed; bottom: 20px; right: 20px; z-index: 999999; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+                #chatbot-bubble { width: 60px; height: 60px; background-color: #007bff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 26px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.25); transition: transform 0.2s ease; }
+                #chatbot-bubble:hover { transform: scale(1.05); }
+                #chatbot-box { display: none; width: 360px; height: 480px; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); flex-direction: column; overflow: hidden; position: absolute; bottom: 80px; right: 0; border: 1px solid #e1e8ed; }
+                #chatbot-header { background: #007bff; color: white; padding: 15px; font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+                #chatbot-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #f8f9fa; }
+                .msg { padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 14px; line-height: 1.4; word-break: break-word; }
+                .msg.bot { background: white; align-self: flex-start; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom-left-radius: 2px; }
+                .msg.user { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+                #chatbot-footer { display: flex; padding: 12px; border-top: 1px solid #eee; gap: 8px; background: white; }
+                #chatbot-input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 14px; }
+                #chatbot-input:focus { border-color: #007bff; }
+                #chatbot-send { background: #007bff; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+                #chatbot-send:hover { background: #0056b3; }
+                .chatbot-link { display: inline-block; margin-top: 8px; color: #007bff; text-decoration: underline; font-size: 13px; font-weight: bold; }
+            `;
+            document.head.appendChild(style);
         }
 
-        fs.createReadStream(csvFilePath)
-            .pipe(csv({
-                mapHeaders: ({ header }) =>
-                    header
-                        .replace(/^[\uFEFF\xEF\xBB\xBF]+/, '')
-                        .replace(/[\r\n]+/g, '')
-                        .trim()
-                        .toLowerCase(),
+        // 2. CHÈN GIAO DIỆN HTML VÀO TRANG WEB VỆ TINH
+        const widget = document.createElement('div');
+        widget.id = 'central-chatbot-widget';
+        widget.innerHTML = `
+            <div id="chatbot-bubble">💬</div>
+            <div id="chatbot-box">
+                <div id="chatbot-header">
+                    <span>${SITE_NAME} (${SITE_ID})</span>
+                    <span id="chatbot-close" style="cursor:pointer; font-size:18px;">×</span>
+                </div>
+                <div id="chatbot-messages">
+                    <div class="msg bot">こんにちは！何かご質問はありますか？</div>
+                </div>
+                <div id="chatbot-footer">
+                    <input type="text" id="chatbot-input" placeholder="質問を入力してください...">
+                    <button id="chatbot-send">Gửi</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(widget);
 
-                mapValues: ({ value }) =>
-                    typeof value === 'string'
-                        ? value.replace(/[\r\n]+/g, '').trim()
-                        : value
-            }))
-            .on('data', (data) => {
-                results.push(data);
-            })
+        const bubble = document.getElementById('chatbot-bubble');
+        const box = document.getElementById('chatbot-box');
+        const closeBtn = document.getElementById('chatbot-close');
 
-            .on('end', () => {
+        bubble.addEventListener('click', () => {
+            box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'flex' : 'none';
+            if (box.style.display === 'flex') document.getElementById('chatbot-input').focus();
+        });
+        closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
-                faqMasterData = results;
+        // TỰ ĐỘNG CHỌN LINK API (Ưu tiên dùng link Render thực tế của bạn)
+        const API_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
+        
+        const input = document.getElementById('chatbot-input');
+        const sendBtn = document.getElementById('chatbot-send');
+        const messagesContainer = document.getElementById('chatbot-messages');
 
-                console.log('==============================');
-                console.log(`✅ CSV loaded: ${faqMasterData.length} rows`);
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+            
+            const uDiv = document.createElement('div'); uDiv.className = 'msg user'; uDiv.innerText = text;
+            messagesContainer.appendChild(uDiv); input.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-                if (faqMasterData.length > 0) {
-                    console.log('📌 Columns:', Object.keys(faqMasterData[0]));
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ site_id: SITE_ID, question: text }) // ĐÃ ĐỔI THÀNH BIẾN ĐỘNG CHUẨN ĐA TRANG
+                });
+                const data = await response.json();
+                
+                const bDiv = document.createElement('div'); bDiv.className = 'msg bot'; bDiv.innerText = data.answer;
+                
+                if (data.redirect_url && data.redirect_url.trim() !== "") {
+                    const link = document.createElement('a');
+                    link.className = 'chatbot-link'; link.href = data.redirect_url.trim(); link.target = '_blank';
+                    link.innerText = '🔗 Chi tiết tại đây';
+                    bDiv.appendChild(link);
                 }
-
-                console.log('==============================');
-
-                resolve();
-            })
-
-            .on('error', (err) => {
-                console.error('❌ CSV ERROR:', err);
-                reject(err);
-            });
-    });
-}
-
-// ===============================
-// HEALTH CHECK
-// ===============================
-
-app.get('/', (req, res) => {
-    res.send('✅ CHATBOT API RUNNING');
-});
-
-// ===============================
-// CHATBOT API
-// ===============================
-
-app.post('/api/v1/chatbot/query', (req, res) => {
-
-    try {
-
-        console.log('\n==============================');
-        console.log('📩 NEW REQUEST');
-        console.log(req.body);
-
-        const { site_id, question } = req.body;
-
-        if (!site_id || !question) {
-            return res.status(400).json({
-                status: 'error',
-                answer: 'Thiếu site_id hoặc question'
-            });
-        }
-
-        const cleanSiteId = normalize(site_id);
-        const cleanQuestion = normalize(question);
-
-        const siteSpecificData = faqMasterData.filter(row =>
-            normalize(row.site_id) === cleanSiteId
-        );
-
-        console.log(`🔍 Site matched rows: ${siteSpecificData.length}`);
-
-        let matchedAnswer = '';
-        let redirectUrl = '';
-
-        for (const row of siteSpecificData) {
-
-            const rawKeywords = row.keywords || '';
-
-            if (!rawKeywords) continue;
-
-            const keywordList = rawKeywords
-                .split(/[,、]/)
-                .map(k => normalize(k))
-                .filter(Boolean);
-
-            const isMatch = keywordList.some(keyword =>
-                cleanQuestion.includes(keyword)
-            );
-
-            if (isMatch) {
-
-                matchedAnswer = row.answer_text || '';
-                redirectUrl = row.redirect_url || '';
-
-                console.log('🎯 MATCH FOUND');
-                console.log(keywordList);
-
-                break;
+                messagesContainer.appendChild(bDiv);
+            } catch (error) {
+                const eDiv = document.createElement('div'); eDiv.className = 'msg bot'; eDiv.innerText = "❌ Lỗi kết nối đến Server.";
+                messagesContainer.appendChild(eDiv);
             }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        if (matchedAnswer) {
-
-            return res.json({
-                status: 'success',
-                answer: matchedAnswer,
-                redirect_url: redirectUrl
-            });
-
-        } else {
-
-            console.log('⚠️ NO MATCH');
-
-            return res.json({
-                status: 'fallback',
-                answer: 'Xin lỗi, tôi chưa tìm thấy thông tin phù hợp.',
-                redirect_url: ''
-            });
-        }
-
-    } catch (err) {
-
-        console.error('❌ SERVER ERROR:', err);
-
-        return res.status(500).json({
-            status: 'error',
-            answer: 'Lỗi server.'
-        });
-    }
-});
-
-// ===============================
-// RELOAD CSV
-// ===============================
-
-app.get('/api/v1/chatbot/reload', async (req, res) => {
-
-    try {
-
-        await loadFaqData();
-
-        res.json({
-            status: 'success',
-            message: 'Reload CSV thành công'
-        });
-
-    } catch (err) {
-
-        res.status(500).json({
-            status: 'error',
-            message: 'Reload thất bại'
-        });
-    }
-});
-
-// ===============================
-// START SERVER
-// ===============================
-
-loadFaqData()
-    .then(() => {
-
-        app.listen(PORT, () => {
-            console.log(`🚀 Server running at PORT ${PORT}`);
-        });
-
-    })
-    .catch(err => {
-        console.error('❌ FAILED TO START:', err);
-    });
+        sendBtn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    };
+})();
