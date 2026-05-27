@@ -1,7 +1,7 @@
 site_id,data_id,category,keywords,answer_text,redirect_url,ai_context
 c-wing,FAQ_CW_001,受講申込,申込;登録;期限,受講申込はWebサイトから24時間受け付けております。締め切りは開講日の3日前までです。,https://jukou-kanri.jp/apply/,常に丁寧な敬語で回答すること。
-c-wing,FAQ_CW_002,Chào hỏi,hi;hello;chào;xin chào,Xin chào! Tôi có thể giúp gì cho bạn hôm nay?,https://c-wing.com/,Form cũ từ khóa tĩnh
-c-wing,FAQ_CW_003,Hỗ trợ,hỗ trợ;liên hệ;hotline;sđt,Bạn có thể liên hệ hotline 1900-xxxx hoặc gửi mail về bộ phận hỗ trợ để được xử lý nhanh nhất.,https://c-wing.com/contact,
+c-wing,FAQ_CW_002,質問,hi;hello;chào;xin chào,Xin chào! Tôi có thể giúp gì cho bạn hôm nay?,https://c-wing.com/,Form cũ từ khóa tĩnh
+c-wing,FAQ_CW_003,問い合わせ,hỗ trợ;liên hệ;hotline;sđt,Bạn có thể liên hệ hotline 1900-xxxx hoặc gửi mail về bộ phận hỗ trợ để được xử lý nhanh nhất.,https://c-wing.com/contact,
 s-wing,FAQ_SW_002,パスワード忘れ,エラー;ログイン;パスワード,ログイン画面の「パスワードをお忘れの方」より再発行の手続きをお願いいたします。,https://s-wing.net/login/,メールを受信できない場合は迷惑メールフォルダを確認。
 s-wing,FAQ_SW_003,Giờ làm việc,営業時間;時;open;giờ,Hệ thống hỗ trợ làm việc từ 9:00 đến 18:00 các ngày từ thứ 2 đến thứ 6 (Nghỉ Thứ 7 và Chủ Nhật).,,
 cansuke,FAQ_CS_001,料金プラン,料金;費用;コスト,基本プランは月額4980円からご利用いただけます。導入サポートを含むビジネスプランについては料金詳細ページをご確認ください。,https://cansuke.net/price/, cá nhân thì báo giá trực tiếp.
