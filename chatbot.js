@@ -1,13 +1,14 @@
-// Định nghĩa hàm khởi tạo toàn cục chuẩn đa trang
+// Khai báo hàm khởi tạo toàn cục để các website vệ tinh gọi cấu hình
 window.initCentralChatbot = function (config) {
+    // 1. LẤY CẤU HÌNH ĐỘNG TỪ WEBSITE NHÚNG
     const SITE_ID = (config && config.site_id) ? config.site_id.trim().toLowerCase() : "c-wing"; 
     const SITE_NAME = (config && config.site_name) ? config.site_name : "Central Chatbot"; 
 
-    // QUAN TRỌNG: Xóa widget cũ dứt điểm để tránh lỗi đơ nút Gửi khi paste nhiều lần
+    // Đảm bảo không bị tạo trùng lặp giao diện trên trang
     const oldWidget = document.getElementById('central-chatbot-widget');
     if (oldWidget) oldWidget.remove();
 
-    // 1. TẠO CSS CHUYÊN NGHIỆP CHO KHUNG CHAT
+    // 2. TẠO STYLE CSS CHO KHUNG CHAT
     const styleId = 'central-chatbot-style';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
@@ -32,14 +33,14 @@ window.initCentralChatbot = function (config) {
         document.head.appendChild(style);
     }
 
-    // 2. CHÈN GIAO DIỆN HTML VÀO TRANG WEB VỆ TINH
+    // 3. CHÈN HTML CỦA KHUNG CHAT VÀO TRANG VỆ TINH
     const widget = document.createElement('div');
     widget.id = 'central-chatbot-widget';
     widget.innerHTML = `
         <div id="chatbot-bubble">💬</div>
         <div id="chatbot-box">
             <div id="chatbot-header">
-                <span>${SITE_NAME} (${SITE_ID})</span>
+                <span>${SITE_NAME}</span>
                 <span id="chatbot-close" style="cursor:pointer; font-size:18px;">×</span>
             </div>
             <div id="chatbot-messages">
@@ -57,28 +58,32 @@ window.initCentralChatbot = function (config) {
     const box = document.getElementById('chatbot-box');
     const closeBtn = document.getElementById('chatbot-close');
 
+    // Sự kiện ẩn/hiện khung chat
     bubble.addEventListener('click', () => {
         box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'flex' : 'none';
         if (box.style.display === 'flex') document.getElementById('chatbot-input').focus();
     });
     closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
-    // KẾT NỐI API TRỰC TIẾP ĐẾN SERVER RENDER CỦA BẠN
+    // ĐƯỜNG LINK ĐẾN SERVER BACKEND TRÊN RENDER
     const API_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
     
     const input = document.getElementById('chatbot-input');
     const sendBtn = document.getElementById('chatbot-send');
     const messagesContainer = document.getElementById('chatbot-messages');
 
+    // Hàm gửi tin nhắn
     async function sendMessage() {
         const text = input.value.trim();
         if (!text) return;
         
+        // Hiển thị tin nhắn người dùng lên màn hình chat
         const uDiv = document.createElement('div'); uDiv.className = 'msg user'; uDiv.innerText = text;
         messagesContainer.appendChild(uDiv); input.value = '';
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         try {
+            // Bắn dữ liệu bao gồm cả site_id động lên Server
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -86,8 +91,10 @@ window.initCentralChatbot = function (config) {
             });
             const data = await response.json();
             
+            // Hiển thị tin nhắn trả lời của Bot
             const bDiv = document.createElement('div'); bDiv.className = 'msg bot'; bDiv.innerText = data.answer;
             
+            // Nếu có link chuyển hướng đi kèm thì tự sinh thẻ Link điều hướng
             if (data.redirect_url && data.redirect_url.trim() !== "") {
                 const link = document.createElement('a');
                 link.className = 'chatbot-link'; link.href = data.redirect_url.trim(); link.target = '_blank';
@@ -102,6 +109,7 @@ window.initCentralChatbot = function (config) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    // Gán sự kiện cho nút click và nút Enter
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 };
