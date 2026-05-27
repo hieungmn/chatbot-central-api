@@ -60,32 +60,31 @@ window.initCentralChatbot = function (config) {
     `;
     document.body.appendChild(widget);
 
-// 3. TỰ ĐỘNG SINH NÚT GỢI Ý DỰA VÀO CATEGORY CỦA SITE_ID ĐANG CHẠY
-const suggestionsContainer = document.getElementById('chatbot-suggestions');
-let dynamicButtons = [];
+    // 3. TỰ ĐỘNG SINH NÚT GỢI Ý DỰA VÀO SITE_ID ĐANG CHẠY
+    const suggestionsContainer = document.getElementById('chatbot-suggestions');
+    let dynamicButtons = [];
 
-// Bạn điền các Category tương ứng của từng trang trong file CSV vào đây
-if (SITE_ID === "c-wing") {
-    dynamicButtons = ["申込について", "アカウント登録", "利用期限"]; // Các danh mục của C-Wing
-} else if (SITE_ID === "s-wing") {
-    dynamicButtons = ["ログインエラー", "パスワード変更"]; 
-} else if (SITE_ID === "account") {
-    // Thay vì hiện nút "setup", "インストール" nhỏ nhặt, ta hiện tên Danh mục lớn
-    dynamicButtons = ["ソフトダウンロード", "初期設定", "決済・料金"]; 
-}
+    // Tự cấu hình danh sách từ khóa hiển thị sẵn tùy theo từng trang
+    if (SITE_ID === "c-wing") {
+        dynamicButtons = ["申込", "登録", "期限"];
+    } else if (SITE_ID === "s-wing") {
+        dynamicButtons = ["エラー", "ログイン", "パスワード"];
+    } else if (SITE_ID === "cansuke") {
+        dynamicButtons = ["料金", "費用", "コスト"];
+    } else if (SITE_ID === "account") {
+        dynamicButtons = ["ダウンロード", "インストール", "setup"];
+    }
 
-// Vẽ các nút lên giao diện
-dynamicButtons.forEach(categoryText => {
-    const btn = document.createElement('button');
-    btn.className = 'suggest-btn';
-    btn.innerText = categoryText; // Tên nút hiển thị là Category
-    
-    btn.addEventListener('click', () => {
-        // Khi bấm vào nút Category, ta gửi chính chữ Category đó lên Server để xử lý
-        sendMessage(categoryText); 
+    // Vẽ các nút lên giao diện và gán sự kiện click trực tiếp
+    dynamicButtons.forEach(text => {
+        const btn = document.createElement('button');
+        btn.className = 'suggest-btn';
+        btn.innerText = text;
+        btn.addEventListener('click', () => {
+            sendMessage(text); // Khi bấm nút, kích hoạt gửi thẳng chữ này lên server
+        });
+        suggestionsContainer.appendChild(btn);
     });
-    suggestionsContainer.appendChild(btn);
-});
 
     // 4. XỬ LÝ LOGIC GỬI TIN NHẮN (ĐÃ NÂNG CẤP NHẬN THAM SỐ)
     const bubble = document.getElementById('chatbot-bubble');
