@@ -76,16 +76,18 @@ app.post('/api/v1/chatbot/query', (req, res) => {
     let matchedAnswer = "";
     let redirectUrl = "";
 
-    // Bước B: Duyệt tìm từ khóa khớp với câu hỏi
+// Bước B: Duyệt tìm từ khóa khớp với câu hỏi (Đã sửa bộ cắt dấu chấm phẩy)
     for (const row of siteSpecificData) {
         let rawKeywords = row.keywords ? row.keywords.replace(/^"|"$/g, '').trim() : "";
         if (!rawKeywords) continue;
 
-        // Cắt mảng từ khóa (hỗ trợ cả dấu phẩy Anh ',' lẫn dấu phẩy Nhật '、') và xóa khoảng trắng
+        // BỘ CẮT NÂNG CAO: Hỗ trợ cả dấu phẩy (,), dấu phẩy Nhật (、) và dấu chấm phẩy (;) trong CSV của bạn
         const keywordList = rawKeywords
-            .split(/[,、]/)
+            .split(/[,、;]/) 
             .map(k => k.trim().toLowerCase())
             .filter(k => k !== "");
+
+        console.log(`🔍 Khung quét rà soát từ khóa: [${keywordList}]`);
 
         // Kiểm tra xem câu hỏi người dùng có chứa từ khóa nào trong danh sách không
         const isMatch = keywordList.some(keyword => cleanQuestion.includes(keyword));
@@ -93,8 +95,8 @@ app.post('/api/v1/chatbot/query', (req, res) => {
         if (isMatch) {
             matchedAnswer = row.answer_text; 
             redirectUrl = row.redirect_url || "";
-            console.log(`🎯 KHỚP THÀNH CÔNG -> Từ khóa: [${keywordList}]`);
-            break; // Tìm thấy từ khóa đầu tiên khớp là dừng vòng lặp ngay
+            console.log(`🎯 KHỚP THÀNH CÔNG -> Từ khóa trùng khớp: [${keywordList}]`);
+            break; 
         }
     }
 
