@@ -5,7 +5,7 @@ window.initCentralChatbot = function (config) {
     const oldWidget = document.getElementById('central-chatbot-widget');
     if (oldWidget) oldWidget.remove();
 
-    // 1. CSS CHUYÊN NGHIỆP (ĐÃ THÊM STYLE CHO CÁC NÚT GỢI Ý)
+    // 1. CSS CHUYÊN NGHIỆP
     const styleId = 'central-chatbot-style';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
@@ -36,7 +36,7 @@ window.initCentralChatbot = function (config) {
         document.head.appendChild(style);
     }
 
-    // 2. TẠO HTML CẤU TRÚC (THÊM THẺ CHỨA NÚT GỢI Ý)
+    // 2. TẠO HTML CẤU TRÚC
     const widget = document.createElement('div');
     widget.id = 'central-chatbot-widget';
     widget.innerHTML = `
@@ -60,19 +60,20 @@ window.initCentralChatbot = function (config) {
     `;
     document.body.appendChild(widget);
 
-    // 3. TỰ ĐỘNG SINH NÚT GỢI Ý DỰA VÀO SITE_ID ĐANG CHẠY
+    // ==================== 3. THÀNH PHẦN ĐƯỢC THAY ĐỔI TẠI ĐÂY ====================
+    // Thay vì dùng keywords, chúng ta cấu hình các nút bấm theo đúng cột "category" trong file CSV của bạn
     const suggestionsContainer = document.getElementById('chatbot-suggestions');
     let dynamicButtons = [];
 
-    // Tự cấu hình danh sách từ khóa hiển thị sẵn tùy theo từng trang
     if (SITE_ID === "c-wing") {
-        dynamicButtons = ["申込", "登録", "期限"];
+        dynamicButtons = ["申込について", "アカウント登録", "利用期限"]; // Ví dụ tên các Category của C-wing
     } else if (SITE_ID === "s-wing") {
-        dynamicButtons = ["エラー", "ログイン", "パスワード"];
+        dynamicButtons = ["ログインエラー", "パスワード変更"]; // Ví dụ tên các Category của S-wing
     } else if (SITE_ID === "cansuke") {
-        dynamicButtons = ["料金", "費用", "コスト"];
+        dynamicButtons = ["料金について", "初期費用"]; 
     } else if (SITE_ID === "account") {
-        dynamicButtons = ["ダウンロード", "インストール", "setup"];
+        // Hãy điền chính xác tên viết trong cột category của file CSV cho trang Business vào đây
+        dynamicButtons = ["ソフトダウンロード", "初期設定", "決済・料金"]; 
     }
 
     // Vẽ các nút lên giao diện và gán sự kiện click trực tiếp
@@ -81,12 +82,13 @@ window.initCentralChatbot = function (config) {
         btn.className = 'suggest-btn';
         btn.innerText = text;
         btn.addEventListener('click', () => {
-            sendMessage(text); // Khi bấm nút, kích hoạt gửi thẳng chữ này lên server
+            sendMessage(text); // Khi bấm nút, gửi CHÍNH XÁC tên Category lên server để kích hoạt `categoryMatch`
         });
         suggestionsContainer.appendChild(btn);
     });
+    // ============================================================================
 
-    // 4. XỬ LÝ LOGIC GỬI TIN NHẮN (ĐÃ NÂNG CẤP NHẬN THAM SỐ)
+    // 4. XỬ LÝ LOGIC GỬI TIN NHẮN
     const bubble = document.getElementById('chatbot-bubble');
     const box = document.getElementById('chatbot-box');
     const closeBtn = document.getElementById('chatbot-close');
@@ -102,13 +104,12 @@ window.initCentralChatbot = function (config) {
     closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
     async function sendMessage(overrideText) {
-        // Nếu truyền chữ từ nút bấm thì lấy overrideText, nếu tự gõ thì lấy từ ô Input
         const text = overrideText ? overrideText.trim() : input.value.trim();
         if (!text) return;
         
         const uDiv = document.createElement('div'); uDiv.className = 'msg user'; uDiv.innerText = text;
         messagesContainer.appendChild(uDiv);
-        if (!overrideText) input.value = ''; // Xóa ô input nếu gõ tay
+        if (!overrideText) input.value = ''; 
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         try {
