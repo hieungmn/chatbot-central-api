@@ -5,7 +5,7 @@ window.initCentralChatbot = function (config) {
     const oldWidget = document.getElementById('central-chatbot-widget');
     if (oldWidget) oldWidget.remove();
 
-    // 1. CSS CHUYÊN NGHIỆP
+    // 1. STYLE CSS (CÓ KHU VỰC CHỨA NÚT GỢI Ý VUỐT NGANG)
     const styleId = 'central-chatbot-style';
     if (!document.getElementById(styleId)) {
         const style = document.createElement('style');
@@ -21,9 +21,11 @@ window.initCentralChatbot = function (config) {
             .msg.bot { background: white; align-self: flex-start; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-bottom-left-radius: 2px; }
             .msg.user { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
             
-            /* Khu vực chứa nút gợi ý */
-            #chatbot-suggestions { display: flex; gap: 6px; padding: 8px 12px; background: #fff; border-top: 1px solid #eee; overflow-x: auto; white-space: nowrap; }
-            .suggest-btn { background: #f0f4f8; color: #007bff; border: 1px solid #d0e3ff; padding: 6px 12px; border-radius: 15px; font-size: 12px; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+            /* Khu vực chứa nút gợi ý bấm nhanh */
+            #chatbot-suggestions { display: flex; gap: 8px; padding: 10px; background: #fff; border-top: 1px solid #eee; overflow-x: auto; white-space: nowrap; }
+            #chatbot-suggestions::-webkit-scrollbar { height: 4px; }
+            #chatbot-suggestions::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+            .suggest-btn { background: #f0f4f8; color: #007bff; border: 1px solid #d0e3ff; padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s ease; font-weight: 500; }
             .suggest-btn:hover { background: #007bff; color: white; border-color: #007bff; }
             
             #chatbot-footer { display: flex; padding: 12px; border-top: 1px solid #eee; gap: 8px; background: white; }
@@ -36,7 +38,7 @@ window.initCentralChatbot = function (config) {
         document.head.appendChild(style);
     }
 
-    // 2. TẠO HTML CẤU TRÚC
+    // 2. HTML CẤU TRÚC KHUNG CHAT
     const widget = document.createElement('div');
     widget.id = 'central-chatbot-widget';
     widget.innerHTML = `
@@ -60,49 +62,54 @@ window.initCentralChatbot = function (config) {
     `;
     document.body.appendChild(widget);
 
-    // ==================== 3. THÀNH PHẦN ĐƯỢC THAY ĐỔI TẠI ĐÂY ====================
-    // Thay vì dùng keywords, chúng ta cấu hình các nút bấm theo đúng cột "category" trong file CSV của bạn
-    const suggestionsContainer = document.getElementById('chatbot-suggestions');
-    let dynamicButtons = [];
-
-    if (SITE_ID === "c-wing") {
-        dynamicButtons = ["申込について", "アカウント登録", "利用期限"]; // Ví dụ tên các Category của C-wing
-    } else if (SITE_ID === "s-wing") {
-        dynamicButtons = ["ログインエラー", "パスワード変更"]; // Ví dụ tên các Category của S-wing
-    } else if (SITE_ID === "cansuke") {
-        dynamicButtons = ["料金について", "初期費用"]; 
-    } else if (SITE_ID === "account") {
-        // Hãy điền chính xác tên viết trong cột category của file CSV cho trang Business vào đây
-        dynamicButtons = ["ソフトダウンロード", "初期設定", "決済・料金"]; 
-    }
-
-    // Vẽ các nút lên giao diện và gán sự kiện click trực tiếp
-    dynamicButtons.forEach(text => {
-        const btn = document.createElement('button');
-        btn.className = 'suggest-btn';
-        btn.innerText = text;
-        btn.addEventListener('click', () => {
-            sendMessage(text); // Khi bấm nút, gửi CHÍNH XÁC tên Category lên server để kích hoạt `categoryMatch`
-        });
-        suggestionsContainer.appendChild(btn);
-    });
-    // ============================================================================
-
-    // 4. XỬ LÝ LOGIC GỬI TIN NHẮN
     const bubble = document.getElementById('chatbot-bubble');
     const box = document.getElementById('chatbot-box');
     const closeBtn = document.getElementById('chatbot-close');
-    const API_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
     const input = document.getElementById('chatbot-input');
     const sendBtn = document.getElementById('chatbot-send');
     const messagesContainer = document.getElementById('chatbot-messages');
+    const suggestionsContainer = document.getElementById('chatbot-suggestions');
 
+    const API_QUERY_URL = "https://chatbot-central-api.onrender.com/api/v1/chatbot/query"; 
+    const API_SUGGEST_URL = `https://chatbot-central-api.onrender.com/api/v1/chatbot/suggestions?site_id=${SITE_ID}`;
+
+    // 3. HÀM TỰ ĐỘNG LOAD VÀ VẼ NÚT GỢI Ý TỪ SERVER RENDER
+    async function loadSuggestedPrompts() {
+        if (!suggestionsContainer) return;
+        try {
+            const response = await fetch(API_SUGGEST_URL);
+            const data = await response.json();
+            suggestionsContainer.innerHTML = ''; // Reset vùng chứa nút
+
+            if (data.categories && data.categories.length > 0) {
+                data.categories.forEach(categoryText => {
+                    const btn = document.createElement('button');
+                    btn.className = 'suggest-btn';
+                    btn.innerText = categoryText;
+                    btn.addEventListener('click', () => {
+                        sendMessage(categoryText); // Bấm nút gửi thẳng tên danh mục lên server
+                    });
+                    suggestionsContainer.appendChild(btn);
+                });
+            } else {
+                suggestionsContainer.style.display = 'none'; // Ẩn vùng chứa nếu không có danh mục nào
+            }
+        } catch (e) {
+            console.error("❌ Không thể tải danh sách nút gợi ý:", e);
+        }
+    }
+
+    // Gọi hàm load nút gợi ý ngay khi chạy bot
+    loadSuggestedPrompts();
+
+    // 4. XỬ LÝ LOGIC ĐÓNG MỞ
     bubble.addEventListener('click', () => {
         box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'flex' : 'none';
         if (box.style.display === 'flex') input.focus();
     });
     closeBtn.addEventListener('click', () => { box.style.display = 'none'; });
 
+    // 5. HÀM GỬI TIN NHẮN VÀ NHẬN KẾT QUẢ VẠN NĂNG
     async function sendMessage(overrideText) {
         const text = overrideText ? overrideText.trim() : input.value.trim();
         if (!text) return;
@@ -113,15 +120,20 @@ window.initCentralChatbot = function (config) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(API_QUERY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ site_id: SITE_ID, question: text }) 
             });
             const data = await response.json();
             
-            const bDiv = document.createElement('div'); bDiv.className = 'msg bot'; bDiv.innerText = data.answer;
+            // Lấy cột answer_text từ server (đã bóc từ file CSV vạn năng)
+            const botAnswer = data.answer_text ? data.answer_text : "申し訳ありません。エラーが発生しました。";
+            const bDiv = document.createElement('div'); bDiv.className = 'msg bot'; bDiv.innerText = botAnswer;
             
+            // Nếu bạn có thêm cột dữ liệu mới (ví dụ: cột tiêng anh english_answer) và mầm mống muốn dùng:
+            // if(data.english_answer) { ... xử lý thêm tại đây tùy ý ... }
+
             if (data.redirect_url && data.redirect_url.trim() !== "") {
                 const link = document.createElement('a');
                 link.className = 'chatbot-link'; link.href = data.redirect_url.trim(); link.target = '_blank';
