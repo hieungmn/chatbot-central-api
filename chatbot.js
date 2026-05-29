@@ -2,12 +2,12 @@ window.initCentralChatbot = function (config) {
     const SITE_ID = (config && config.site_id) ? config.site_id.trim().toLowerCase() : "c-wing"; 
     const SITE_NAME = (config && config.site_name) ? config.site_name : "Central Chatbot"; 
 
-    // Bảng màu cấu hình theo thương hiệu
+    // Bảng màu cấu hình theo thương hiệu - Đã dọn sạch ký tự ẩn tiếng Nhật ở dòng s-wing
     const colorMap = {
         "c-wing": "#396e11",   // Xanh lá
-        "cansuke": "#359DD2",  // Cam
-        "account": "#940A3B",  // Xanh dương
-        "s-wing": "#0f50c1"    //　
+        "cansuke": "#359DD2",  // Xanh dương sáng
+        "account": "#940A3B",  // Đỏ đô
+        "s-wing": "#0f50c1"    // Xanh dương đậm
     };
     const PRIMARY_COLOR = colorMap[SITE_ID] || "#007bff";
     const SERVER_BASE_URL = "https://chatbot-central-api.onrender.com";
@@ -63,7 +63,10 @@ window.initCentralChatbot = function (config) {
         const suggestionsContainer = document.getElementById("chatbot-suggestions");
 
         // Gán màu sắc và tên dự án động trực tiếp từ Javascript
-        if (bubble) bubble.style.backgroundColor = PRIMARY_COLOR;
+        if (bubble) {
+            bubble.style.backgroundColor = PRIMARY_COLOR;
+            bubble.style.setProperty('display', 'flex', 'important'); // Ép buộc bong bóng phải hiện diện
+        }
         if (header) header.style.backgroundColor = PRIMARY_COLOR;
         if (sendBtn) sendBtn.style.backgroundColor = PRIMARY_COLOR;
         if (siteNameSpan) siteNameSpan.innerText = SITE_NAME;
