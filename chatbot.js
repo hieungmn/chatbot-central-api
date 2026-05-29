@@ -2,41 +2,34 @@ window.initCentralChatbot = function (config) {
     const SITE_ID = (config && config.site_id) ? config.site_id.trim().toLowerCase() : "c-wing"; 
     const SITE_NAME = (config && config.site_name) ? config.site_name : "Central Chatbot"; 
 
-    // Bảng màu cấu hình theo thương hiệu - Đã dọn sạch ký tự ẩn tiếng Nhật ở dòng s-wing
     const colorMap = {
-        "c-wing": "#396e11",   // Xanh lá
-        "cansuke": "#359DD2",  // Xanh dương sáng
-        "account": "#940A3B",  // Đỏ đô
-        "s-wing": "#0f50c1"    // Xanh dương đậm
+        "c-wing": "#396e11",   
+        "cansuke": "#359DD2",  
+        "account": "#940A3B",  
+        "s-wing": "#0f50c1"    
     };
     const PRIMARY_COLOR = colorMap[SITE_ID] || "#007bff";
     const SERVER_BASE_URL = "https://chatbot-central-api.onrender.com";
 
-    // Xóa widget cũ để tránh lặp lại giao diện khi init nhiều lần
     const oldWidget = document.getElementById("central-chatbot-widget");
     if (oldWidget) oldWidget.remove();
 
-    // Hàm tải giao diện HTML, ép trình duyệt render trước khi chạy logic
+    // SỬA TẬN GỐC: Nhét trực tiếp chuỗi HTML (gồm cả thẻ <style> và <div>) vào trang
     async function injectChatbotUI() {
         try {
             const response = await fetch(`${SERVER_BASE_URL}/chatbot.html`);
             if (!response.ok) throw new Error("Không thể fetch file chatbot.html");
             const htmlTemplate = await response.text();
 
-            // Sử dụng DOMParser để biến chuỗi String thành phần tử DOM Node thực tế
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlTemplate, "text/html");
-            const widgetNode = doc.getElementById("central-chatbot-widget");
+            // Tạo một container tạm bằng div
+            const container = document.createElement("div");
+            container.innerHTML = htmlTemplate;
 
-            if (!widgetNode) {
-                console.error("❌ Không tìm thấy thẻ #central-chatbot-widget trong file html!");
-                return;
+            // Bốc toàn bộ những gì bên trong container tạm chèn vào body (Lấy được cả thẻ <style> luôn)
+            while (container.firstChild) {
+                document.body.appendChild(container.firstChild);
             }
 
-            // Chèn thẳng khối giao diện vào cuối thẻ body
-            document.body.appendChild(widgetNode);
-
-            // Chờ 50ms để trình duyệt cập nhật DOM xong xuôi rồi mới chạy logic sự kiện
             setTimeout(() => {
                 initializeLogic();
             }, 50);
@@ -46,10 +39,8 @@ window.initCentralChatbot = function (config) {
         }
     }
 
-    // Tiến hành kích hoạt nạp giao diện
     injectChatbotUI();
 
-    // HÀM KHỞI TẠO LOGIC VÀ ÁP MÀU ĐỘNG BẰNG JAVASCRIPT
     function initializeLogic() {
         const bubble = document.getElementById("chatbot-bubble");
         const box = document.getElementById("chatbot-box");
@@ -62,16 +53,14 @@ window.initCentralChatbot = function (config) {
         const messagesContainer = document.getElementById("chatbot-messages");
         const suggestionsContainer = document.getElementById("chatbot-suggestions");
 
-        // Gán màu sắc và tên dự án động trực tiếp từ Javascript
         if (bubble) {
             bubble.style.backgroundColor = PRIMARY_COLOR;
-            bubble.style.setProperty('display', 'flex', 'important'); // Ép buộc bong bóng phải hiện diện
+            bubble.style.display = "flex"; // Trả lại flex bình thường, không cần !important
         }
         if (header) header.style.backgroundColor = PRIMARY_COLOR;
         if (sendBtn) sendBtn.style.backgroundColor = PRIMARY_COLOR;
         if (siteNameSpan) siteNameSpan.innerText = SITE_NAME;
 
-        // Đổi màu viền khung nhập liệu khi trỏ chuột vào (focus)
         if (input && wrapper) {
             input.addEventListener("focus", () => { 
                 wrapper.style.borderColor = PRIMARY_COLOR; 
@@ -83,7 +72,6 @@ window.initCentralChatbot = function (config) {
             });
         }
 
-        // Tải danh mục gợi ý làm nút nhanh bên dưới ô chat
         async function loadSuggestedPrompts() {
             if (!suggestionsContainer) return;
             try {
@@ -116,7 +104,6 @@ window.initCentralChatbot = function (config) {
 
         loadSuggestedPrompts();
 
-        // Xử lý sự kiện đóng mở khung chat khi nhấn bong bóng chat
         if (bubble && box) {
             bubble.addEventListener("click", () => {
                 box.style.display = (box.style.display === "none" || box.style.display === "") ? "flex" : "none";
@@ -127,13 +114,11 @@ window.initCentralChatbot = function (config) {
             closeBtn.addEventListener("click", () => { box.style.display = "none"; });
         }
 
-        // Hàm xử lý gửi tin nhắn lên API vạn năng
         async function sendMessage(overrideText) {
             if (!input || !messagesContainer) return;
             const text = overrideText ? overrideText.trim() : input.value.trim();
             if (!text) return;
             
-            // Vẽ tin nhắn của User
             const uDiv = document.createElement("div"); 
             uDiv.className = "msg user"; 
             uDiv.innerText = text;
@@ -156,7 +141,6 @@ window.initCentralChatbot = function (config) {
                 bDiv.className = "msg bot"; 
                 bDiv.innerText = botAnswer;
 
-                // Thêm link điều hướng nếu server trả về URL
                 if (data.redirect_url && data.redirect_url.trim() !== "") {
                     const link = document.createElement("a");
                     link.className = "chatbot-link"; 
