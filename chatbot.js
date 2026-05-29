@@ -2,34 +2,45 @@ window.initCentralChatbot = function (config) {
     const SITE_ID = (config && config.site_id) ? config.site_id.trim().toLowerCase() : "c-wing"; 
     const SITE_NAME = (config && config.site_name) ? config.site_name : "Central Chatbot"; 
 
+    // Bảng màu cấu hình theo thương hiệu
     const colorMap = {
-        "c-wing": "#396e11",   
-        "cansuke": "#359DD2",  
-        "account": "#940A3B",  
-        "s-wing": "#0f50c1"    
+        "c-wing": "#396e11",   // Xanh lá
+        "cansuke": "#359DD2",  // Xanh dương sáng
+        "account": "#940A3B",  // Đỏ đô
+        "s-wing": "#0f50c1"    // Xanh dương đậm
     };
     const PRIMARY_COLOR = colorMap[SITE_ID] || "#007bff";
     const SERVER_BASE_URL = "https://chatbot-central-api.onrender.com";
 
+    // Xóa widget cũ nếu có để không bị trùng lặp giao diện khi gõ lại lệnh Console
     const oldWidget = document.getElementById("central-chatbot-widget");
     if (oldWidget) oldWidget.remove();
 
-    // SỬA TẬN GỐC: Nhét trực tiếp chuỗi HTML (gồm cả thẻ <style> và <div>) vào trang
+    // Hàm tải giao diện HTML từ Server Render
     async function injectChatbotUI() {
         try {
-            const response = await fetch(`${SERVER_BASE_URL}/chatbot.html`);
+            // Lấy file HTML từ Render về
+            const response = await fetch(`${SERVER_BASE_URL}/chatbot.html?v=${Date.now()}`); // Thêm buster xóa cache HTML
             if (!response.ok) throw new Error("Không thể fetch file chatbot.html");
             const htmlTemplate = await response.text();
 
-            // Tạo một container tạm bằng div
-            const container = document.createElement("div");
-            container.innerHTML = htmlTemplate;
+            // SỬA ĐỂ CHẠY CONSOLE: Dùng DOMParser dựng document ảo để hốt trọn cả thẻ <style> lẫn thẻ <div>
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlTemplate, "text/html");
+            
+            const styleNode = doc.querySelector("style");
+            const widgetNode = doc.getElementById("central-chatbot-widget");
 
-            // Bốc toàn bộ những gì bên trong container tạm chèn vào body (Lấy được cả thẻ <style> luôn)
-            while (container.firstChild) {
-                document.body.appendChild(container.firstChild);
+            if (!widgetNode) {
+                console.error("❌ Không tìm thấy thẻ #central-chatbot-widget trong file html!");
+                return;
             }
 
+            // Chèn cả CSS lẫn cấu hình HTML vào trang web hiện tại để hiển thị đúng chuẩn góc màn hình
+            if (styleNode) document.head.appendChild(styleNode);
+            document.body.appendChild(widgetNode);
+
+            // Chờ một chút ngắn để trình duyệt nhận diện các ID rồi mới chạy logic sự kiện click
             setTimeout(() => {
                 initializeLogic();
             }, 50);
@@ -39,8 +50,10 @@ window.initCentralChatbot = function (config) {
         }
     }
 
+    // Kích hoạt nạp giao diện
     injectChatbotUI();
 
+    // HÀM KHỞI TẠO LOGIC VÀ ÁP MÀU ĐỘNG
     function initializeLogic() {
         const bubble = document.getElementById("chatbot-bubble");
         const box = document.getElementById("chatbot-box");
@@ -53,9 +66,10 @@ window.initCentralChatbot = function (config) {
         const messagesContainer = document.getElementById("chatbot-messages");
         const suggestionsContainer = document.getElementById("chatbot-suggestions");
 
+        // Gán màu sắc và tên dự án động trực tiếp từ Javascript
         if (bubble) {
             bubble.style.backgroundColor = PRIMARY_COLOR;
-            bubble.style.display = "flex"; // Trả lại flex bình thường, không cần !important
+            bubble.style.display = "flex"; 
         }
         if (header) header.style.backgroundColor = PRIMARY_COLOR;
         if (sendBtn) sendBtn.style.backgroundColor = PRIMARY_COLOR;
@@ -72,6 +86,7 @@ window.initCentralChatbot = function (config) {
             });
         }
 
+        // Tải danh mục gợi ý làm nút nhanh bên dưới ô chat
         async function loadSuggestedPrompts() {
             if (!suggestionsContainer) return;
             try {
@@ -104,6 +119,7 @@ window.initCentralChatbot = function (config) {
 
         loadSuggestedPrompts();
 
+        // Xử lý sự kiện đóng mở khung chat khi nhấn bong bóng chat
         if (bubble && box) {
             bubble.addEventListener("click", () => {
                 box.style.display = (box.style.display === "none" || box.style.display === "") ? "flex" : "none";
@@ -114,6 +130,7 @@ window.initCentralChatbot = function (config) {
             closeBtn.addEventListener("click", () => { box.style.display = "none"; });
         }
 
+        // Hàm xử lý gửi tin nhắn lên API vạn năng
         async function sendMessage(overrideText) {
             if (!input || !messagesContainer) return;
             const text = overrideText ? overrideText.trim() : input.value.trim();
