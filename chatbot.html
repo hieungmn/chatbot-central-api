@@ -10,7 +10,7 @@
         width: 60px; 
         height: 60px; 
         border-radius: 50%; 
-        display: flex; 
+        display: none; /* Mặc định ẩn, file JS nhận được màu từ CSV sẽ mở display: flex */
         align-items: center; 
         justify-content: center; 
         color: white; 
@@ -157,7 +157,7 @@
     <div id="chatbot-bubble">💬</div>
     <div id="chatbot-box">
         <div id="chatbot-header">
-            <span id="chatbot-site-name">Chatbot</span>
+            <span id="chatbot-site-name">Loading...</span>
             <span id="chatbot-close" style="cursor:pointer; font-size:18px;">×</span>
         </div>
         <div id="chatbot-messages">
