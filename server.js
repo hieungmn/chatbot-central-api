@@ -7,7 +7,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const CSV_FILE_PATH = './chatbot_master_db.csv'; // Đường dẫn tới file CSV mới của bạn
+const CSV_FILE_PATH = './master_faq.csv'; // Đường dẫn tới file CSV mới của bạn
 
 // API CẤU HÌNH MỚI: Đọc file CSV, lọc dữ liệu theo site_id và trả về cho Frontend
 app.get('/api/v1/chatbot/config', (req, res) => {
