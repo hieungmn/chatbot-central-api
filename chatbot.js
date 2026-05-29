@@ -4,10 +4,10 @@ window.initCentralChatbot = function (config) {
 
     // Bảng màu cấu hình theo thương hiệu
     const colorMap = {
-        "c-wing": "#28a745",   // Xanh lá
-        "cansuke": "#fd7e14",  // Cam
-        "account": "#007bff",  // Xanh dương
-        "s-wing": "#6f42c1"    // Tím
+        "c-wing": "#396e11",   // Xanh lá
+        "cansuke": "#359DD2",  // Cam
+        "account": "#940A3B",  // Xanh dương
+        "s-wing": "#0f50c1"    //　
     };
     const PRIMARY_COLOR = colorMap[SITE_ID] || "#007bff";
     const SERVER_BASE_URL = "https://chatbot-central-api.onrender.com";
