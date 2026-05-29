@@ -64,7 +64,8 @@ app.get('/api/v1/chatbot/config', (req, res) => {
         });
 });
 
-// 2. API XỬ LÝ CÂU HỎI TỰ DO CỦA USER (MỞ RỘNG AI PHẦN B)
+
+// 2. API XỬ LÝ CÂU HỎI TỰ DO CỦA USER (CẬP NHẬT ĐỌC DẤU | CHO KEYWORDS)
 app.post('/api/v1/chatbot/query', (req, res) => {
     const { site_id, question } = req.body;
 
@@ -79,8 +80,8 @@ app.post('/api/v1/chatbot/query', (req, res) => {
         .pipe(csv())
         .on('data', (row) => {
             if (row.site_id && row.site_id.trim().toLowerCase() === site_id.trim().toLowerCase() && (row.valid == "1" || row.valid == 1)) {
-                // Thuật toán AI cơ bản: Quét kiểm tra cụm từ khóa (keywords)
-                const keywords = row.keywords ? row.keywords.toLowerCase().split(',') : [];
+                // Tách từ khóa bằng dấu gạch đứng | thay vì dấu phẩy để không bị lỗi parse CSV
+                const keywords = row.keywords ? row.keywords.toLowerCase().split('|') : [];
                 const isMatch = keywords.some(keyword => userQuestion.includes(keyword.trim()));
 
                 if (isMatch) {
@@ -95,9 +96,8 @@ app.post('/api/v1/chatbot/query', (req, res) => {
             if (matchedFaq) {
                 res.json(matchedFaq);
             } else {
-                // Phản hồi dự phòng khi AI không hiểu hoặc từ khóa không khớp
                 res.json({
-                    answer: "申し訳ありません。Câu hỏi chưa có trong hệ thống dữ liệu AI. Bạn vui lòng thử chọn các câu hỏi nhanh bên dưới nhé!",
+                    answer: "申し訳ありません. Hệ thống chưa nhận diện được câu hỏi. Bạn vui lòng chọn các câu hỏi nhanh bên dưới nhé!",
                     reference_url: ""
                 });
             }
